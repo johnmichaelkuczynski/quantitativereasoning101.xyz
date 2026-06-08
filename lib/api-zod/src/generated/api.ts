@@ -521,3 +521,27 @@ export const GenerateReportResponse = zod.object({
 })
 
 
+/**
+ * @summary Per-topic focus pointers for an assignment, from the student's logged practice
+ */
+export const GetAssignmentFocusParams = zod.object({
+  "assignmentId": zod.coerce.number()
+})
+
+export const GetAssignmentFocusResponse = zod.object({
+  "assignmentId": zod.number(),
+  "assignmentTitle": zod.string(),
+  "readiness": zod.number().describe('0..100 readiness estimate for the graded version, from logged practice'),
+  "headline": zod.string().describe('A short, surgically-precise summary of what to focus on next'),
+  "topics": zod.array(zod.object({
+  "topicId": zod.number(),
+  "topicTitle": zod.string(),
+  "attempts": zod.number(),
+  "accuracy": zod.number(),
+  "strengthLabel": zod.enum(['strong', 'solid', 'developing', 'weak', 'untested']),
+  "priority": zod.enum(['high', 'medium', 'low', 'ready']),
+  "pointer": zod.string().describe('A precise, actionable pointer for this topic based on the student\'s logged practice')
+}))
+})
+
+

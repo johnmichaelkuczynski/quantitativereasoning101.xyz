@@ -396,6 +396,48 @@ export interface AnalyticsReport {
   recommendations: string[];
 }
 
+export type TopicFocusStrengthLabel = typeof TopicFocusStrengthLabel[keyof typeof TopicFocusStrengthLabel];
+
+
+export const TopicFocusStrengthLabel = {
+  strong: 'strong',
+  solid: 'solid',
+  developing: 'developing',
+  weak: 'weak',
+  untested: 'untested',
+} as const;
+
+export type TopicFocusPriority = typeof TopicFocusPriority[keyof typeof TopicFocusPriority];
+
+
+export const TopicFocusPriority = {
+  high: 'high',
+  medium: 'medium',
+  low: 'low',
+  ready: 'ready',
+} as const;
+
+export interface TopicFocus {
+  topicId: number;
+  topicTitle: string;
+  attempts: number;
+  accuracy: number;
+  strengthLabel: TopicFocusStrengthLabel;
+  priority: TopicFocusPriority;
+  /** A precise, actionable pointer for this topic based on the student's logged practice */
+  pointer: string;
+}
+
+export interface AssignmentFocus {
+  assignmentId: number;
+  assignmentTitle: string;
+  /** 0..100 readiness estimate for the graded version, from logged practice */
+  readiness: number;
+  /** A short, surgically-precise summary of what to focus on next */
+  headline: string;
+  topics: TopicFocus[];
+}
+
 export type CourseOverviewTotals = {
   assignmentsCompleted: number;
   assignmentsTotal: number;

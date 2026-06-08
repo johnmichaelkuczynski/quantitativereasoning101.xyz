@@ -164,16 +164,17 @@ router.post("/practice/sessions/:sessionId/next", async (req, res): Promise<void
     }>(
       `You generate a single college ethics practice problem for a college freshman. The problem MUST be on the topic "${topic.title}" and at difficulty "${difficultyLabel}" (${difficulty.toFixed(
         1,
-      )}/5). Favor concept-identification, short-scenario, and true/false-with-reason questions. The answer must be a short string (a single word, a term, "yes"/"no", or one short phrase) — never multi-paragraph. Respond as strict JSON: {"prompt": string, "correctAnswer": string, "explanation": string}. Avoid these recent prompts: ${JSON.stringify(
+      )}/5). HARD RULES: (1) The prompt MUST open with a SPECIFIC, concrete SCENARIO or SITUATION (named people, a dilemma, a case) and then ask the student to APPLY the concept to it — judge it, decide what to do, or diagnose the reasoning. (2) NEVER ask the student to define a term, "explain the difference", "state the principle", or recite a concept in the abstract. (3) The answer MUST require substantive, multi-sentence reasoning — never a single word, term, "yes"/"no", true/false, or fill-in-the-blank. Higher difficulty = a more tangled scenario with competing considerations, not a harder vocabulary word. Provide a rich model answer of 3-5 sentences that works the scenario. Respond as strict JSON: {"prompt": string, "correctAnswer": string, "explanation": string} where explanation is a one-sentence summary of the key point. Do NOT reuse these recent scenarios: ${JSON.stringify(
         lastProblems.map((p) => p.prompt),
       )}.`,
-      userRequest || `Generate a new ${difficultyLabel} problem on ${topic.title}.`,
+      userRequest || `Generate a new ${difficultyLabel} scenario-based problem on ${topic.title}.`,
     );
   } catch {
     generated = {
-      prompt: `Practice (${topic.title}): In one sentence, explain the central idea of "${topic.title}" and give an example.`,
-      correctAnswer: "A clear statement of the key idea with a relevant example.",
-      explanation: "Re-read the lecture for this topic and state its main claim in your own words.",
+      prompt: `Practice (${topic.title}): Imagine a real situation in which two people disagree about how "${topic.title}" applies. Describe the situation briefly, then argue which side gets it right and why, using the concept.`,
+      correctAnswer:
+        "A worked-through scenario that applies the concept to take a defensible side, with reasons drawn from the topic.",
+      explanation: "Re-read the lecture for this topic, then apply its central claim to a concrete case.",
     };
   }
 
@@ -337,37 +338,99 @@ router.post("/assignments/:assignmentId/practice", async (req, res): Promise<voi
     return;
   }
 
-  // Generate one fresh, substantive practice problem per source problem, on the same topic.
-  const generated = await Promise.all(
-    sourceProblems.map(async (src) => {
-      const topicTitle = src.topicTitle ?? "this topic";
-      let out: { prompt: string; correctAnswer: string; explanation: string };
+  // Every graded prompt for this assignment is OFF-LIMITS for practice (no overlap with the real thing).
+  const gradedPrompts = sourceProblems.map((s) => s.prompt);
+
+  // Recently-generated practice prompts per topic (across prior practice sessions) — avoid repeats.
+  const recentPracticeRows = await db
+    .select({ topicId: practiceProblemsTable.topicId, prompt: practiceProblemsTable.prompt })
+    .from(practiceProblemsTable)
+    .orderBy(desc(practiceProblemsTable.id))
+    .limit(200);
+  const recentByTopic = new Map<number, string[]>();
+  for (const r of recentPracticeRows) {
+    const list = recentByTopic.get(r.topicId) ?? [];
+    if (list.length < 6) list.push(r.prompt);
+    recentByTopic.set(r.topicId, list);
+  }
+
+  // Hard, deterministic no-repeat enforcement: nothing identical to a graded prompt,
+  // to a recently-generated practice prompt, or to a sibling in THIS set.
+  const norm = (s: string) => s.toLowerCase().replace(/\s+/g, " ").trim();
+  const used = new Set<string>();
+  for (const g of gradedPrompts) used.add(norm(g));
+  for (const list of recentByTopic.values()) for (const p of list) used.add(norm(p));
+
+  // Varied fallback scenarios so repeated topics never collapse to identical generic prompts.
+  const fallbackAngles = [
+    "a coworker making a decision under pressure",
+    "two friends arguing over the right call",
+    "a public official defending a controversial choice",
+    "a student facing a dilemma with no easy answer",
+    "a family weighing what they owe one another",
+    "a stranger whose situation forces a hard judgment",
+  ];
+  function fallbackFor(topicTitle: string, idx: number) {
+    const angle = fallbackAngles[idx % fallbackAngles.length];
+    return {
+      prompt: `Invent a brief, concrete situation involving ${angle} where "${topicTitle}" is exactly the idea in play. Describe the situation in a sentence or two, then work through what the concept says they should conclude or do, and why — case ${idx + 1}.`,
+      correctAnswer: `A worked-through scenario that applies the core idea of ${topicTitle} to reach a defensible conclusion, giving reasons grounded in the concept rather than restating its definition.`,
+      explanation: `Re-read the lecture on ${topicTitle}, then apply its central claim to a concrete case.`,
+    };
+  }
+
+  // Generate sequentially so each new problem can avoid every prompt already produced in this set.
+  const generated: Array<{ stored: typeof practiceProblemsTable.$inferSelect; topicTitle: string }> =
+    [];
+  for (let i = 0; i < sourceProblems.length; i++) {
+    const src = sourceProblems[i]!;
+    const topicTitle = src.topicTitle ?? "this topic";
+
+    let out: { prompt: string; correctAnswer: string; explanation: string } | null = null;
+    for (let attempt = 0; attempt < 3 && out === null; attempt++) {
+      const avoid = [
+        ...gradedPrompts,
+        ...(src.topicId != null ? recentByTopic.get(src.topicId) ?? [] : []),
+        ...generated.map((g) => g.stored.prompt),
+      ];
+      let candidate: { prompt: string; correctAnswer: string; explanation: string };
       try {
-        out = await chatJson<{ prompt: string; correctAnswer: string; explanation: string }>(
-          `You write ONE college ethics practice question that mirrors a graded question but is NOT identical to it. Requirements: (1) it must be on the topic "${topicTitle}"; (2) it MUST require a substantive, multi-sentence reasoned answer — NEVER a one-word, yes/no, true/false, fill-in-the-blank, or "define in N words" question; (3) provide a rich model answer of 3-5 sentences. Respond as strict JSON: {"prompt": string, "correctAnswer": string, "explanation": string} where explanation is a one-sentence summary of the key point.`,
-          `Graded question to mirror (write a different one on the same idea):\n"""\n${src.prompt}\n"""\nModel answer of the graded question (for grounding, do not copy):\n"""\n${src.correctAnswer}\n"""`,
+        candidate = await chatJson<{ prompt: string; correctAnswer: string; explanation: string }>(
+          `You write ONE college ethics practice question on the topic "${topicTitle}" that prepares a student for a graded question on the SAME idea. HARD RULES: (1) The prompt MUST open with a SPECIFIC, concrete SCENARIO or SITUATION (named people, a real-feeling dilemma or case) and then ask the student to APPLY the concept — judge it, decide, or diagnose the reasoning. (2) NEVER ask the student to "define", "explain the difference", "state the principle", or recite the concept in the abstract. (3) The answer MUST require substantive, multi-sentence reasoning — never one word, a term, yes/no, true/false, or fill-in-the-blank. (4) Your scenario MUST be clearly DIFFERENT from — not a paraphrase of — any scenario in the AVOID list; invent a fresh case (different people, setting, and details). Provide a rich model answer of 3-5 sentences that works through your scenario. Respond as strict JSON: {"prompt": string, "correctAnswer": string, "explanation": string} where explanation is a one-sentence summary of the key point.`,
+          `Concept being tested (do NOT reproduce this graded wording — it appears on the real assignment):\n"""\n${src.prompt}\n"""\nModel answer of the graded question (for grounding the concept only, do not copy):\n"""\n${src.correctAnswer}\n"""\n\nAVOID — do not repeat or paraphrase any of these scenarios:\n${JSON.stringify(avoid)}`,
         );
       } catch {
-        out = {
-          prompt: `Explain the central idea of "${topicTitle}" in your own words, and illustrate it with an example. Then explain why it matters for moral reasoning.`,
-          correctAnswer: src.correctAnswer,
-          explanation: `Re-read the lecture on ${topicTitle} and state its main claim, an example, and its significance.`,
-        };
+        candidate = fallbackFor(topicTitle, i);
       }
-      const [stored] = await db
-        .insert(practiceProblemsTable)
-        .values({
-          sessionId: session.id,
-          topicId: src.topicId,
-          prompt: out.prompt,
-          correctAnswer: out.correctAnswer,
-          explanation: out.explanation,
-          difficulty: 3.0,
-        })
-        .returning();
-      return { stored, topicTitle };
-    }),
-  );
+      // Accept only if it is not identical to anything already used; otherwise retry.
+      if (!used.has(norm(candidate.prompt))) out = candidate;
+    }
+
+    // Guaranteed-unique deterministic fallback if the model kept colliding.
+    if (out === null) {
+      let fb = fallbackFor(topicTitle, i);
+      let bump = i;
+      while (used.has(norm(fb.prompt))) {
+        bump += sourceProblems.length;
+        fb = fallbackFor(topicTitle, bump);
+      }
+      out = fb;
+    }
+
+    used.add(norm(out.prompt));
+    const [stored] = await db
+      .insert(practiceProblemsTable)
+      .values({
+        sessionId: session.id,
+        topicId: src.topicId,
+        prompt: out.prompt,
+        correctAnswer: out.correctAnswer,
+        explanation: out.explanation,
+        difficulty: 3.0,
+      })
+      .returning();
+    if (stored) generated.push({ stored, topicTitle });
+  }
 
   res.json(
     GenerateAssignmentPracticeResponse.parse({
@@ -439,9 +502,9 @@ router.post("/practice/sessions/:sessionId/feedback", async (req, res): Promise<
   let feedback = "";
   try {
     feedback = await chatText(
-      "You are an encouraging college ethics tutor giving feedback on a PRACTICE answer (not graded for a record). Write warm, specific markdown feedback (4-8 sentences). Name what the student got right, pinpoint what is missing or mistaken, and give one concrete suggestion for strengthening the answer. Do NOT simply restate the model answer; coach them toward it. Use short paragraphs or a couple of bullet points.",
+      "You are an encouraging college ethics tutor giving GENEROUS, detailed feedback on a PRACTICE answer (this never affects any grade, so be candid and thorough). The question is a scenario the student had to APPLY a concept to. Write warm, specific markdown using these labeled sections, each with real substance:\n\n**What you nailed** — name the specific things they got right about the scenario (be concrete; quote or paraphrase their move).\n**What's missing or off** — pinpoint exactly where the reasoning is thin, wrong, or skips a step in applying the concept to THIS scenario.\n**How to make it airtight** — 2-3 concrete, actionable suggestions to strengthen the answer (a consideration to add, a distinction to draw, a part of the scenario to engage).\n**Try this** — one short follow-up prompt or question that pushes their thinking, and an invitation to discuss it further below.\n\nCoach them toward the model answer; do NOT just paste it. Be specific to the scenario, not generic. 8-14 sentences total.",
       JSON.stringify({
-        question: problem.prompt,
+        scenario_question: problem.prompt,
         model_answer: problem.correctAnswer,
         student_answer: answer,
         verdict: graded.correct ? "on the right track" : "needs work",

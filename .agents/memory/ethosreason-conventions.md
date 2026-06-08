@@ -36,6 +36,24 @@ by `lectureId` and guard async completion (`targetId === lectureId`) so a slow r
 doesn't mutate UI after navigating to another lecture. The short `body` is the only
 field seeded; `bodyMedium`/`bodyLong` are NULL until generated.
 
+## Practice no-repeat must be enforced server-side, not just prompted
+The assignment-practice generator (`POST /assignments/:id/practice`) must GUARANTEE no
+identical prompts — never rely on LLM "avoid this list" guidance alone.
+**Why:** parallel `Promise.all` generation can't see same-set siblings, and the fallback
+path emits identical generic prompts when a topic repeats within one assignment — both
+violate the user's hard "NO repeats / nothing identical to graded" requirement.
+**How to apply:** generate sequentially; keep a normalized (`lowercase, collapse ws`)
+`used` set seeded with all graded prompts + recent practice prompts; pass already-generated
+siblings into the `avoid` list each iteration; retry on collision; vary the deterministic
+fallback by index (angle list + `case N`) and bump the index until unique.
+
+## Analytics-driven focus pointers (evolving profile)
+`GET /assignments/:id/focus` reads the user's logged `practice_attempts` to compute, per
+assignment topic, attempts/accuracy/strengthLabel/priority + a precise pointer string,
+plus an overall `readiness` (accuracy × topic-coverage × 100) and a headline. The
+PracticeAssignment `FocusPanel` refetches after each graded practice answer so the profile
+visibly evolves. The "profile" is just the practice_attempts table — no separate store.
+
 ## Reseed behavior
 `POST /api/diagnostics/reseed` wipes ALL content + progress then re-seeds from
 `seed.ts`. It is gated to non-production (`NODE_ENV !== "production"` → 403 in prod).

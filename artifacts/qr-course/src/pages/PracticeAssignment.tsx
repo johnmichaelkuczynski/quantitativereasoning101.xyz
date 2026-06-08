@@ -5,10 +5,13 @@ import {
   useGenerateAssignmentPractice,
   useGradePracticeWithFeedback,
   useDiscussPracticeProblem,
+  useGetAssignmentFocus,
   type AssignmentPracticeSet,
   type PracticeFeedback,
   type PracticeDiscussTurn,
   type KeystrokeTrace,
+  type AssignmentFocus,
+  type TopicFocus,
 } from "@workspace/api-client-react";
 import { Layout } from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
@@ -25,6 +28,7 @@ import {
   Send,
   MessageSquare,
   GraduationCap,
+  Target,
 } from "lucide-react";
 
 const emptyTrace: KeystrokeTrace = {
@@ -40,6 +44,9 @@ export default function PracticeAssignment() {
   const { data: assignment } = useGetAssignment(assignmentId);
   const generate = useGenerateAssignmentPractice();
   const [set, setSet] = useState<AssignmentPracticeSet | null>(null);
+
+  const focusQuery = useGetAssignmentFocus(assignmentId);
+  const focus = focusQuery.data ?? null;
 
   function generateSet() {
     generate.mutate(
@@ -88,6 +95,8 @@ export default function PracticeAssignment() {
             </p>
           </header>
 
+          {focus && <FocusPanel focus={focus} />}
+
           <div className="flex items-center justify-between mb-4">
             <div className="text-xs text-muted-foreground">
               {set ? `${set.problems.length} practice problems` : "Generating practice set…"}
@@ -118,6 +127,7 @@ export default function PracticeAssignment() {
                   sessionId={set.sessionId}
                   problemId={p.id}
                   prompt={p.prompt}
+                  onGraded={() => focusQuery.refetch()}
                 />
               ))}
             </div>
@@ -154,11 +164,13 @@ function PracticeProblemCard({
   sessionId,
   problemId,
   prompt,
+  onGraded,
 }: {
   index: number;
   sessionId: number;
   problemId: number;
   prompt: string;
+  onGraded?: () => void;
 }) {
   const [answer, setAnswer] = useState("");
   const [trace, setTrace] = useState<KeystrokeTrace>(emptyTrace);
@@ -169,7 +181,12 @@ function PracticeProblemCard({
   function submit() {
     grade.mutate(
       { sessionId, data: { problemId, answer, trace } },
-      { onSuccess: (r) => setFeedback(r) },
+      {
+        onSuccess: (r) => {
+          setFeedback(r);
+          onGraded?.();
+        },
+      },
     );
   }
 
@@ -251,6 +268,78 @@ function PracticeProblemCard({
       )}
 
       <DiscussChat sessionId={sessionId} problemId={problemId} />
+    </div>
+  );
+}
+
+/* ============ Analytics-driven focus pointers (evolving profile) ============ */
+const PRIORITY_STYLES: Record<
+  TopicFocus["priority"],
+  { dot: string; label: string; text: string }
+> = {
+  high: { dot: "bg-red-500", label: "Focus here", text: "text-red-700" },
+  medium: { dot: "bg-amber-500", label: "Keep practicing", text: "text-amber-700" },
+  low: { dot: "bg-sky-500", label: "Almost there", text: "text-sky-700" },
+  ready: { dot: "bg-emerald-500", label: "Ready", text: "text-emerald-700" },
+};
+
+function FocusPanel({ focus }: { focus: AssignmentFocus }) {
+  const ordered = focus.topics;
+  return (
+    <div className="mb-6 rounded-lg border border-border bg-card p-5">
+      <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-primary mb-3">
+        <Target className="w-4 h-4" />
+        Where to focus — based on your practice history
+      </div>
+
+      <div className="flex items-center gap-3 mb-3">
+        <div className="flex-1">
+          <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
+            <span>Estimated readiness for the graded version</span>
+            <span className="font-semibold text-foreground">{focus.readiness}%</span>
+          </div>
+          <div className="h-2 rounded-full bg-secondary overflow-hidden">
+            <div
+              className="h-full rounded-full bg-primary transition-all"
+              style={{ width: `${focus.readiness}%` }}
+            />
+          </div>
+        </div>
+      </div>
+
+      <p className="text-sm text-foreground/90 mb-4">{focus.headline}</p>
+
+      {ordered.length > 0 && (
+        <ul className="flex flex-col gap-2.5">
+          {ordered.map((t) => {
+            const s = PRIORITY_STYLES[t.priority];
+            return (
+              <li key={t.topicId} className="flex items-start gap-2.5">
+                <span className={`mt-1.5 shrink-0 w-2 h-2 rounded-full ${s.dot}`} />
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-sm font-medium text-foreground">
+                      {t.topicTitle}
+                    </span>
+                    <span className={`text-[11px] font-semibold uppercase tracking-wide ${s.text}`}>
+                      {s.label}
+                    </span>
+                    {t.attempts > 0 && (
+                      <span className="text-[11px] text-muted-foreground">
+                        {Math.round(t.accuracy * 100)}% over {t.attempts}{" "}
+                        {t.attempts === 1 ? "try" : "tries"}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground leading-relaxed mt-0.5">
+                    {t.pointer}
+                  </p>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      )}
     </div>
   );
 }

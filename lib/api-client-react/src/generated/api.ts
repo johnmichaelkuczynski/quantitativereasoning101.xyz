@@ -26,6 +26,7 @@ import type {
   AnswerInput,
   AnswerSaved,
   Assignment,
+  AssignmentFocus,
   AssignmentPracticeSet,
   AssignmentSummary,
   AttemptResult,
@@ -1763,4 +1764,81 @@ export const useGenerateReport = <TError = ErrorType<unknown>,
       > => {
       return useMutation(getGenerateReportMutationOptions(options));
     }
+
+export const getGetAssignmentFocusUrl = (assignmentId: number,) => {
+
+
+
+
+  return `/api/assignments/${assignmentId}/focus`
+}
+
+/**
+ * @summary Per-topic focus pointers for an assignment, from the student's logged practice
+ */
+export const getAssignmentFocus = async (assignmentId: number, options?: RequestInit): Promise<AssignmentFocus> => {
+
+  return customFetch<AssignmentFocus>(getGetAssignmentFocusUrl(assignmentId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAssignmentFocusQueryKey = (assignmentId: number,) => {
+    return [
+    `/api/assignments/${assignmentId}/focus`
+    ] as const;
+    }
+
+
+export const getGetAssignmentFocusQueryOptions = <TData = Awaited<ReturnType<typeof getAssignmentFocus>>, TError = ErrorType<unknown>>(assignmentId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAssignmentFocus>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAssignmentFocusQueryKey(assignmentId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAssignmentFocus>>> = ({ signal }) => getAssignmentFocus(assignmentId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(assignmentId), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAssignmentFocus>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAssignmentFocusQueryResult = NonNullable<Awaited<ReturnType<typeof getAssignmentFocus>>>
+export type GetAssignmentFocusQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Per-topic focus pointers for an assignment, from the student's logged practice
+ */
+
+export function useGetAssignmentFocus<TData = Awaited<ReturnType<typeof getAssignmentFocus>>, TError = ErrorType<unknown>>(
+ assignmentId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAssignmentFocus>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAssignmentFocusQueryOptions(assignmentId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
 

@@ -438,6 +438,24 @@ paths:
               schema:
                 $ref: "#/components/schemas/AnalyticsReport"
 
+  /assignments/{assignmentId}/focus:
+    get:
+      operationId: getAssignmentFocus
+      tags: [analytics]
+      summary: Per-topic focus pointers for an assignment, from the student's logged practice
+      parameters:
+        - name: assignmentId
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AssignmentFocus"
+
 components:
   schemas:
     HealthStatus:
@@ -842,6 +860,41 @@ components:
         recommendations:
           type: array
           items: { type: string }
+
+    TopicFocus:
+      type: object
+      required: [topicId, topicTitle, attempts, accuracy, strengthLabel, priority, pointer]
+      properties:
+        topicId: { type: integer }
+        topicTitle: { type: string }
+        attempts: { type: integer }
+        accuracy: { type: number }
+        strengthLabel:
+          type: string
+          enum: [strong, solid, developing, weak, untested]
+        priority:
+          type: string
+          enum: [high, medium, low, ready]
+        pointer:
+          type: string
+          description: A precise, actionable pointer for this topic based on the student's logged practice
+
+    AssignmentFocus:
+      type: object
+      required: [assignmentId, assignmentTitle, readiness, headline, topics]
+      properties:
+        assignmentId: { type: integer }
+        assignmentTitle: { type: string }
+        readiness:
+          type: integer
+          description: 0..100 readiness estimate for the graded version, from logged practice
+        headline:
+          type: string
+          description: A short, surgically-precise summary of what to focus on next
+        topics:
+          type: array
+          items:
+            $ref: "#/components/schemas/TopicFocus"
 
     CourseOverview:
       type: object
