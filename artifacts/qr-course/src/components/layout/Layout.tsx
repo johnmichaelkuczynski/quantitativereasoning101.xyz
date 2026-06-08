@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
-import { LayoutDashboard, PenTool, BarChart3, Activity, RotateCcw, Sparkles, LogOut } from "lucide-react";
+import { LayoutDashboard, PenTool, BarChart3, Activity, RotateCcw, LogOut } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useClerk, useUser } from "@clerk/react";
 
@@ -62,34 +62,6 @@ function TopBar() {
   const { signOut } = useClerk();
   const { user } = useUser();
   const [resetting, setResetting] = useState(false);
-  const [expanding, setExpanding] = useState(false);
-
-  async function handleExpandLectures() {
-    if (
-      !confirm(
-        "Generate Medium and Long versions of every lecture? This runs the tutor over all 27 lectures twice (medium, then long). Takes a few minutes.",
-      )
-    )
-      return;
-    setExpanding(true);
-    try {
-      const mRes = await fetch("/api/diagnostics/expand-lectures?level=medium", { method: "POST" });
-      if (!mRes.ok) throw new Error(`Medium expansion failed: HTTP ${mRes.status}`);
-      const mData = (await mRes.json()) as { updated?: number; failed?: number; total?: number };
-      const lRes = await fetch("/api/diagnostics/expand-lectures?level=long", { method: "POST" });
-      if (!lRes.ok) throw new Error(`Long expansion failed: HTTP ${lRes.status}`);
-      const lData = (await lRes.json()) as { updated?: number; failed?: number; total?: number };
-      await qc.invalidateQueries();
-      alert(
-        `Medium: ${mData.updated ?? 0}/${mData.total ?? 0} (${mData.failed ?? 0} failed)\n` +
-          `Long:   ${lData.updated ?? 0}/${lData.total ?? 0} (${lData.failed ?? 0} failed)`,
-      );
-    } catch (e) {
-      alert(`Lecture rewrite failed: ${(e as Error).message}`);
-    } finally {
-      setExpanding(false);
-    }
-  }
 
   async function handleReset() {
     if (
@@ -113,16 +85,6 @@ function TopBar() {
 
   return (
     <div className="sticky top-0 z-10 flex items-center justify-end gap-2 px-6 py-3 border-b border-border bg-background/80 backdrop-blur">
-      <button
-        onClick={handleExpandLectures}
-        disabled={expanding}
-        className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium border border-border hover:bg-secondary disabled:opacity-50"
-        data-testid="button-expand-lectures"
-        title="Rewrite every lecture with worked examples after each point"
-      >
-        <Sparkles className={`w-4 h-4 ${expanding ? "animate-pulse" : ""}`} />
-        {expanding ? "Rewriting…" : "Generate medium + long lectures"}
-      </button>
       <button
         onClick={handleReset}
         disabled={resetting}

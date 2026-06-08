@@ -24,6 +24,18 @@ one-word / yes-no / true-false / fill-in-blank / "define in N words". The shared
 `AnswerInput` has a `prose` mode (readable font, no math keyboard / quick-pick) used
 by both the graded runner and practice; non-prose mode is the math-style large mono input.
 
+## Lecture depth generation must be lazy/per-lecture
+Medium/Long lecture bodies are generated on demand via
+`POST /api/diagnostics/expand-lectures?level=medium|long&id=<lectureId>` (one lecture
+≈ 28-30s). Do NOT batch all 27 lectures (or omit `id`) from the browser — that runs
+many minutes in one fetch and the proxy/browser times out, so it *looks* broken even
+though the backend succeeds.
+**How to apply:** the LectureView Medium/Long tabs generate the missing depth for the
+current lecture only, with a loading state, then `refetch`. Scope/reset that gen state
+by `lectureId` and guard async completion (`targetId === lectureId`) so a slow response
+doesn't mutate UI after navigating to another lecture. The short `body` is the only
+field seeded; `bodyMedium`/`bodyLong` are NULL until generated.
+
 ## Reseed behavior
 `POST /api/diagnostics/reseed` wipes ALL content + progress then re-seeds from
 `seed.ts`. It is gated to non-production (`NODE_ENV !== "production"` → 403 in prod).

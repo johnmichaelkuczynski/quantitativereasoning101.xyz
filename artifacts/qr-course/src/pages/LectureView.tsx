@@ -21,7 +21,54 @@ import { ArrowLeft, MessageSquare, Sparkles, X, RefreshCw, CheckCircle2, XCircle
 export default function LectureView() {
   const params = useParams();
   const lectureId = Number(params.lectureId);
-  const { data: lecture, isLoading } = useGetLecture(lectureId);
+  const { data: lecture, isLoading, refetch } = useGetLecture(lectureId);
+
+  const [tab, setTab] = useState<"tutor" | "practice">("tutor");
+  const [level, setLevel] = useState<"short" | "medium" | "long">("short");
+
+  // Lazy on-demand generation of the medium/long version for THIS lecture only.
+  // Generating all 27 lectures in one request times out, so we expand a single
+  // lecture when the reader actually asks for that depth (~30s).
+  const [generatingLevel, setGeneratingLevel] = useState<"medium" | "long" | null>(null);
+  const [generateError, setGenerateError] = useState<string | null>(null);
+
+  // Reset all depth/generation UI state whenever we switch to a different
+  // lecture, so a Medium/Long selection (or in-flight generation) never bleeds
+  // across lectures.
+  useEffect(() => {
+    setLevel("short");
+    setGeneratingLevel(null);
+    setGenerateError(null);
+  }, [lectureId]);
+
+  async function generateLevel(lvl: "medium" | "long") {
+    if (!lecture) return;
+    const targetId = lecture.id;
+    setGeneratingLevel(lvl);
+    setGenerateError(null);
+    try {
+      const res = await fetch(
+        `/api/diagnostics/expand-lectures?level=${lvl}&id=${targetId}`,
+        { method: "POST" },
+      );
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = (await res.json()) as { updated?: number; failed?: number };
+      if (!data.updated) {
+        throw new Error("The model returned an unusable rewrite. Try again.");
+      }
+      await refetch();
+      // Ignore completion if the reader has moved to a different lecture.
+      if (targetId !== lectureId) return;
+      setLevel(lvl);
+    } catch (e) {
+      if (targetId !== lectureId) return;
+      setGenerateError(
+        `Couldn't generate the ${lvl} version: ${(e as Error).message}`,
+      );
+    } finally {
+      if (targetId === lectureId) setGeneratingLevel(null);
+    }
+  }
 
   // shared selected-text state (used by both Tutor and Practice)
   const [selectedText, setSelectedText] = useState("");
@@ -47,9 +94,6 @@ export default function LectureView() {
       document.removeEventListener("keyup", onSelect);
     };
   }, []);
-
-  const [tab, setTab] = useState<"tutor" | "practice">("tutor");
-  const [level, setLevel] = useState<"short" | "medium" | "long">("short");
 
   const availableLevels = useMemo(() => {
     const out: Array<"short" | "medium" | "long"> = ["short"];
@@ -99,39 +143,71 @@ export default function LectureView() {
                   </div>
                   <div className="inline-flex rounded-md border border-border overflow-hidden text-xs">
                     {(["short", "medium", "long"] as const).map((lvl) => {
-                      const enabled = availableLevels.includes(lvl);
+                      const ready = availableLevels.includes(lvl);
                       const active = level === lvl;
+                      const isGenerating = generatingLevel === lvl;
+                      const busy = generatingLevel !== null;
                       return (
                         <button
                           key={lvl}
-                          onClick={() => enabled && setLevel(lvl)}
-                          disabled={!enabled}
+                          onClick={() => {
+                            if (busy) return;
+                            if (ready) setLevel(lvl);
+                            else if (lvl !== "short") generateLevel(lvl);
+                          }}
+                          disabled={busy}
                           title={
-                            enabled
+                            ready
                               ? `${lvl[0].toUpperCase() + lvl.slice(1)} version`
-                              : `${lvl[0].toUpperCase() + lvl.slice(1)} version not generated yet — click "Generate medium + long lectures" in the top bar`
+                              : `Generate the ${lvl} version of this lecture (takes ~30s)`
                           }
-                          className={`px-3 py-1.5 font-medium uppercase tracking-wider transition-colors ${
+                          className={`px-3 py-1.5 font-medium uppercase tracking-wider transition-colors inline-flex items-center gap-1 ${
                             active
                               ? "bg-primary text-primary-foreground"
-                              : enabled
-                                ? "bg-background hover:bg-secondary text-foreground"
-                                : "bg-background/50 text-muted-foreground/50 cursor-not-allowed"
-                          }`}
+                              : "bg-background hover:bg-secondary text-foreground"
+                          } ${busy && !isGenerating ? "opacity-50" : ""}`}
                           data-testid={`button-level-${lvl}`}
                         >
+                          {isGenerating && <RefreshCw className="w-3 h-3 animate-spin" />}
                           {lvl}
+                          {!ready && lvl !== "short" && !isGenerating && (
+                            <Sparkles className="w-3 h-3 opacity-60" />
+                          )}
                         </button>
                       );
                     })}
                   </div>
                 </div>
+                {!availableLevels.includes("medium") || !availableLevels.includes("long") ? (
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    Tip: click <strong>Medium</strong> or <strong>Long</strong> to have the
+                    tutor write a deeper version of this lecture on demand (~30 seconds).
+                  </p>
+                ) : null}
+                {generateError && (
+                  <p className="mt-2 text-xs text-destructive">{generateError}</p>
+                )}
               </header>
               <div className="bg-card border shadow-sm rounded-lg p-6 md:p-8" ref={articleRef}>
-                <MarkdownRenderer content={activeBody} />
-                <div className="mt-6 pt-4 border-t border-dashed border-border text-xs text-muted-foreground italic">
-                  Tip: highlight any passage above to ask the tutor about it, or to generate practice problems specifically on what you selected.
-                </div>
+                {generatingLevel ? (
+                  <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
+                    <RefreshCw className="w-6 h-6 animate-spin text-primary" />
+                    <div className="text-sm font-medium text-foreground">
+                      Writing the {generatingLevel} version of this lecture…
+                    </div>
+                    <div className="text-xs text-muted-foreground max-w-sm">
+                      The tutor is rewriting this lecture with more explanation and extra
+                      worked examples. This takes about 30 seconds.
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <MarkdownRenderer content={activeBody} />
+                    <div className="mt-6 pt-4 border-t border-dashed border-border text-xs text-muted-foreground italic">
+                      Tip: highlight any passage above to ask the tutor about it, or to generate practice problems specifically on what you selected.
+                    </div>
+                  </>
+                )}
               </div>
             </article>
           ) : (
