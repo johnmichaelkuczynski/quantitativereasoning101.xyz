@@ -20,7 +20,7 @@ export function Sidebar() {
             <div className="w-8 h-8 bg-primary rounded-md flex items-center justify-center text-primary-foreground font-serif font-bold text-lg">
               QR
             </div>
-            <span className="font-serif font-semibold text-lg tracking-tight">QuantReason</span>
+            <span className="font-serif font-semibold text-lg tracking-tight">Quantitative Reasoning</span>
           </div>
         </Link>
       </div>
