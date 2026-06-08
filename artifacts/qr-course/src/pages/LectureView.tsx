@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   useGetLecture,
+  getGetLectureQueryKey,
   useAskTutor,
   useStartPracticeSession,
   useNextPracticeProblem,
@@ -9,6 +10,7 @@ import {
   type PracticeGrade,
   type KeystrokeTrace,
 } from "@workspace/api-client-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Layout } from "@/components/layout/Layout";
 import { useParams, Link } from "wouter";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -53,12 +55,63 @@ export default function LectureView() {
   const [tab, setTab] = useState<"tutor" | "practice">("tutor");
   const [level, setLevel] = useState<"short" | "medium" | "long">("short");
 
+  const qc = useQueryClient();
+  const [generatingLevel, setGeneratingLevel] = useState<"medium" | "long" | null>(null);
+  const [generateError, setGenerateError] = useState<string | null>(null);
+
+  // Tracks the lecture currently displayed, readable from inside async closures
+  // so an in-flight generation can tell if the user has since navigated away.
+  const currentLectureIdRef = useRef(lectureId);
+  currentLectureIdRef.current = lectureId;
+
+  // Reset depth selection + generation state whenever we switch lectures, so a
+  // generation started on one lecture can't leak its UI state into another.
+  useEffect(() => {
+    setLevel("short");
+    setGeneratingLevel(null);
+    setGenerateError(null);
+  }, [lectureId]);
+
   const availableLevels = useMemo(() => {
     const out: Array<"short" | "medium" | "long"> = ["short"];
     if (lecture?.bodyMedium) out.push("medium");
     if (lecture?.bodyLong) out.push("long");
     return out;
   }, [lecture?.bodyMedium, lecture?.bodyLong]);
+
+  async function generateLevel(lvl: "medium" | "long") {
+    if (generatingLevel) return;
+    const startedFor = lectureId;
+    setGenerateError(null);
+    setGeneratingLevel(lvl);
+    try {
+      const res = await fetch(
+        `/api/diagnostics/expand-lectures?level=${lvl}&id=${startedFor}`,
+        { method: "POST" },
+      );
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = (await res.json()) as { updated?: number; failed?: number };
+      if (!data.updated) throw new Error("generation did not return content");
+      // Always refresh the lecture we generated for, even if the user navigated away.
+      await qc.invalidateQueries({ queryKey: getGetLectureQueryKey(startedFor) });
+      // Only mutate UI state if we're still on the lecture we started from.
+      if (startedFor === currentLectureIdRef.current) setLevel(lvl);
+    } catch (e) {
+      if (startedFor === currentLectureIdRef.current) {
+        setGenerateError(`Couldn't generate the ${lvl} version: ${(e as Error).message}`);
+      }
+    } finally {
+      if (startedFor === currentLectureIdRef.current) setGeneratingLevel(null);
+    }
+  }
+
+  function onLevelClick(lvl: "short" | "medium" | "long") {
+    if (availableLevels.includes(lvl)) {
+      setLevel(lvl);
+    } else if (lvl === "medium" || lvl === "long") {
+      void generateLevel(lvl);
+    }
+  }
 
   const activeBody =
     level === "long" && lecture?.bodyLong
@@ -103,32 +156,42 @@ export default function LectureView() {
                     {(["short", "medium", "long"] as const).map((lvl) => {
                       const enabled = availableLevels.includes(lvl);
                       const active = level === lvl;
+                      const isGenerating = generatingLevel === lvl;
+                      const busy = generatingLevel !== null;
+                      const label = lvl[0].toUpperCase() + lvl.slice(1);
                       return (
                         <button
                           key={lvl}
-                          onClick={() => enabled && setLevel(lvl)}
-                          disabled={!enabled}
+                          onClick={() => !busy && onLevelClick(lvl)}
+                          disabled={busy}
                           title={
                             enabled
-                              ? `${lvl[0].toUpperCase() + lvl.slice(1)} version`
-                              : `${lvl[0].toUpperCase() + lvl.slice(1)} version not generated yet — click "Generate medium + long lectures" in the top bar`
+                              ? `${label} version`
+                              : `Generate the ${label} version of this lecture now`
                           }
                           className={`px-3 py-1.5 font-medium uppercase tracking-wider transition-colors ${
                             active
                               ? "bg-primary text-primary-foreground"
                               : enabled
                                 ? "bg-background hover:bg-secondary text-foreground"
-                                : "bg-background/50 text-muted-foreground/50 cursor-not-allowed"
+                                : busy
+                                  ? "bg-background/50 text-muted-foreground/50 cursor-wait"
+                                  : "bg-background text-muted-foreground hover:bg-secondary hover:text-foreground"
                           }`}
                           data-testid={`button-level-${lvl}`}
                         >
-                          {lvl}
+                          {isGenerating ? "Generating…" : enabled ? lvl : `+ ${lvl}`}
                         </button>
                       );
                     })}
                   </div>
                 </div>
               </header>
+              {generateError && (
+                <div className="mb-4 text-sm text-red-800 bg-red-50 border border-red-300 rounded-md px-3 py-2">
+                  {generateError}
+                </div>
+              )}
               <div className="bg-card border shadow-sm rounded-lg p-6 md:p-8" ref={articleRef}>
                 <MarkdownRenderer content={activeBody} />
                 <div className="mt-6 pt-4 border-t border-dashed border-border text-xs text-muted-foreground italic">
