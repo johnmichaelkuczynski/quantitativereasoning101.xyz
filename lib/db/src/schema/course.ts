@@ -130,3 +130,69 @@ export const practiceAttemptsTable = pgTable("practice_attempts", {
   trace: jsonb("trace"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+// ---- Practice assignments (a generated, ungraded twin of a real assignment) ----
+// Each generation is a fresh, single-use playable attempt. Problems are stored
+// inline (answer/correct/feedback on the row) since each practice assignment is
+// generated once and never reused.
+export const practiceAssignmentsTable = pgTable("practice_assignments", {
+  id: serial("id").primaryKey(),
+  sourceAssignmentId: integer("source_assignment_id")
+    .notNull()
+    .references(() => assignmentsTable.id, { onDelete: "cascade" }),
+  kind: text("kind").notNull(), // homework | test | midterm | final
+  title: text("title").notNull(),
+  weekNumber: integer("week_number").notNull(),
+  status: text("status").notNull().default("in_progress"), // in_progress | submitted
+  scorePercent: doublePrecision("score_percent"),
+  focusReport: jsonb("focus_report"), // { summary, readiness, pointers[], encouragement }
+  startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
+  submittedAt: timestamp("submitted_at", { withTimezone: true }),
+});
+
+export const practiceAssignmentProblemsTable = pgTable("practice_assignment_problems", {
+  id: serial("id").primaryKey(),
+  practiceAssignmentId: integer("practice_assignment_id")
+    .notNull()
+    .references(() => practiceAssignmentsTable.id, { onDelete: "cascade" }),
+  topicId: integer("topic_id").notNull(),
+  position: integer("position").notNull(),
+  prompt: text("prompt").notNull(),
+  correctAnswer: text("correct_answer").notNull(),
+  explanation: text("explanation").notNull(),
+  hint: text("hint"),
+  answer: text("answer").notNull().default(""),
+  correct: boolean("correct"),
+  feedback: text("feedback"),
+  keystrokeCount: integer("keystroke_count").notNull().default(0),
+  eraseCount: integer("erase_count").notNull().default(0),
+  durationMs: integer("duration_ms").notNull().default(0),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// Free-form dialogue about the feedback for a practice attempt (optionally scoped
+// to a single problem via problemId).
+export const practiceFeedbackMessagesTable = pgTable("practice_feedback_messages", {
+  id: serial("id").primaryKey(),
+  practiceAssignmentId: integer("practice_assignment_id")
+    .notNull()
+    .references(() => practiceAssignmentsTable.id, { onDelete: "cascade" }),
+  problemId: integer("problem_id"),
+  role: text("role").notNull(), // user | assistant
+  content: text("content").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// Evolving per-topic mastery profile. Updated by every graded submit, topic
+// drill, and practice-assignment submit. emaAccuracy is an exponential moving
+// average (recent performance weighted more) so the profile tracks growth.
+export const topicProfileTable = pgTable("topic_profile", {
+  topicId: integer("topic_id")
+    .primaryKey()
+    .references(() => topicsTable.id, { onDelete: "cascade" }),
+  attempts: integer("attempts").notNull().default(0),
+  correct: integer("correct").notNull().default(0),
+  emaAccuracy: doublePrecision("ema_accuracy").notNull().default(0.5),
+  notes: text("notes"),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});

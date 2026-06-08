@@ -339,6 +339,122 @@ export interface AnalyticsReport {
   recommendations: string[];
 }
 
+export interface GeneratePracticeInput {
+  sourceAssignmentId: number;
+}
+
+export type PracticeAssignmentPlayableKind = typeof PracticeAssignmentPlayableKind[keyof typeof PracticeAssignmentPlayableKind];
+
+
+export const PracticeAssignmentPlayableKind = {
+  homework: 'homework',
+  test: 'test',
+  midterm: 'midterm',
+  final: 'final',
+} as const;
+
+export type PracticeAssignmentPlayableStatus = typeof PracticeAssignmentPlayableStatus[keyof typeof PracticeAssignmentPlayableStatus];
+
+
+export const PracticeAssignmentPlayableStatus = {
+  in_progress: 'in_progress',
+  submitted: 'submitted',
+} as const;
+
+export interface PracticeAssignmentPlayable {
+  id: number;
+  sourceAssignmentId: number;
+  kind: PracticeAssignmentPlayableKind;
+  title: string;
+  weekNumber: number;
+  status: PracticeAssignmentPlayableStatus;
+  problems: Problem[];
+}
+
+export interface PracticeProblemResult {
+  problemId: number;
+  position: number;
+  prompt: string;
+  /** @nullable */
+  topicTitle?: string | null;
+  correct: boolean;
+  userAnswer: string;
+  correctAnswer: string;
+  explanation: string;
+  feedback: string;
+}
+
+export interface FocusPointer {
+  topicTitle: string;
+  issue: string;
+  action: string;
+  /** @nullable */
+  masteryPercent?: number | null;
+}
+
+export interface FocusReport {
+  summary: string;
+  /** 0..100 estimate of readiness for the graded version */
+  readiness: number;
+  pointers: FocusPointer[];
+  encouragement: string;
+}
+
+export interface PracticeAssignmentResult {
+  id: number;
+  score: number;
+  total: number;
+  percent: number;
+  perProblem: PracticeProblemResult[];
+  focusReport: FocusReport;
+}
+
+export interface FeedbackChatInput {
+  message: string;
+  /** @nullable */
+  problemId?: number | null;
+}
+
+export interface FeedbackChatReply {
+  reply: string;
+}
+
+export type FeedbackMessageRole = typeof FeedbackMessageRole[keyof typeof FeedbackMessageRole];
+
+
+export const FeedbackMessageRole = {
+  user: 'user',
+  assistant: 'assistant',
+} as const;
+
+export interface FeedbackMessage {
+  id: number;
+  /** @nullable */
+  problemId?: number | null;
+  role: FeedbackMessageRole;
+  content: string;
+  at: string;
+}
+
+export interface PracticeHistoryItem {
+  id: number;
+  /** @nullable */
+  percent: number | null;
+  /** @nullable */
+  submittedAt: string | null;
+}
+
+export interface PracticeReadiness {
+  attempts: number;
+  /** @nullable */
+  bestPercent: number | null;
+  /** @nullable */
+  lastPercent: number | null;
+  /** 0..100 readiness estimate for the graded version */
+  readiness: number;
+  items: PracticeHistoryItem[];
+}
+
 export type CourseOverviewTotals = {
   assignmentsCompleted: number;
   assignmentsTotal: number;

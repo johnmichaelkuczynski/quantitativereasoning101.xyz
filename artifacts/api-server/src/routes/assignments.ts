@@ -18,6 +18,7 @@ import {
 } from "@workspace/api-zod";
 import { gradeAnswer } from "../lib/grading";
 import { detect } from "../lib/detection";
+import { recordTopicOutcome } from "../lib/profile";
 
 const router: IRouter = Router();
 
@@ -280,6 +281,7 @@ router.post("/assignments/attempts/:attemptId/submit", async (req, res): Promise
       userAnswer,
     });
     if (graded.correct) score += 1;
+    await recordTopicOutcome(p.topicId, graded.correct);
     perProblem.push({
       problemId: p.id,
       correct: graded.correct,

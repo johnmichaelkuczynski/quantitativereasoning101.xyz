@@ -158,6 +158,15 @@ export default function AssignmentRunner() {
           )}
         </div>
 
+        <div className="flex items-center justify-between gap-4 rounded-md border border-primary/30 bg-primary/5 px-4 py-3">
+          <p className="text-sm text-muted-foreground">
+            This is the <span className="font-semibold text-foreground">graded</span> version — the tutor is hidden here. Want to warm up first?
+          </p>
+          <Link href={`/practice-assignment/${assignmentId}`}>
+            <Button variant="outline" size="sm">Practice this — unlimited, ungraded →</Button>
+          </Link>
+        </div>
+
         {currentProblem ? (
           <div className="flex flex-col gap-8">
             <div className="prose prose-slate dark:prose-invert max-w-none text-lg">

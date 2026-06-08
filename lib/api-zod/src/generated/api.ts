@@ -444,3 +444,210 @@ export const GenerateReportResponse = zod.object({
 })
 
 
+/**
+ * @summary Generate a fresh practice twin of a graded assignment (infinite, never-repeating, never overlapping the real problems)
+ */
+export const GeneratePracticeAssignmentBody = zod.object({
+  "sourceAssignmentId": zod.number()
+})
+
+export const GeneratePracticeAssignmentResponse = zod.object({
+  "id": zod.number(),
+  "sourceAssignmentId": zod.number(),
+  "kind": zod.enum(['homework', 'test', 'midterm', 'final']),
+  "title": zod.string(),
+  "weekNumber": zod.number(),
+  "status": zod.enum(['in_progress', 'submitted']),
+  "problems": zod.array(zod.object({
+  "id": zod.number(),
+  "position": zod.number(),
+  "prompt": zod.string(),
+  "topicId": zod.number(),
+  "topicTitle": zod.string().nullish(),
+  "hint": zod.string().nullish()
+}))
+})
+
+
+/**
+ * @summary Get a practice assignment with its problems
+ */
+export const GetPracticeAssignmentParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GetPracticeAssignmentResponse = zod.object({
+  "id": zod.number(),
+  "sourceAssignmentId": zod.number(),
+  "kind": zod.enum(['homework', 'test', 'midterm', 'final']),
+  "title": zod.string(),
+  "weekNumber": zod.number(),
+  "status": zod.enum(['in_progress', 'submitted']),
+  "problems": zod.array(zod.object({
+  "id": zod.number(),
+  "position": zod.number(),
+  "prompt": zod.string(),
+  "topicId": zod.number(),
+  "topicTitle": zod.string().nullish(),
+  "hint": zod.string().nullish()
+}))
+})
+
+
+/**
+ * @summary Save (or update) a single practice answer with keystroke trace
+ */
+export const SavePracticeAssignmentAnswerParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const savePracticeAssignmentAnswerBodyTraceBulkInsertCountDefault = 0;
+export const savePracticeAssignmentAnswerBodyTraceLongestBulkInsertCharsDefault = 0;
+export const savePracticeAssignmentAnswerBodyTraceRewriteSegmentsDefault = 0;
+
+export const SavePracticeAssignmentAnswerBody = zod.object({
+  "problemId": zod.number(),
+  "answer": zod.string(),
+  "trace": zod.object({
+  "keystrokeCount": zod.number(),
+  "eraseCount": zod.number(),
+  "bulkInsertCount": zod.number().default(savePracticeAssignmentAnswerBodyTraceBulkInsertCountDefault),
+  "longestBulkInsertChars": zod.number().default(savePracticeAssignmentAnswerBodyTraceLongestBulkInsertCharsDefault),
+  "rewriteSegments": zod.number().default(savePracticeAssignmentAnswerBodyTraceRewriteSegmentsDefault),
+  "durationMs": zod.number()
+})
+})
+
+export const SavePracticeAssignmentAnswerResponse = zod.object({
+  "ok": zod.boolean()
+})
+
+
+/**
+ * @summary Submit a practice attempt for heavy feedback + analytics-based focus pointers
+ */
+export const SubmitPracticeAssignmentParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const SubmitPracticeAssignmentResponse = zod.object({
+  "id": zod.number(),
+  "score": zod.number(),
+  "total": zod.number(),
+  "percent": zod.number(),
+  "perProblem": zod.array(zod.object({
+  "problemId": zod.number(),
+  "position": zod.number(),
+  "prompt": zod.string(),
+  "topicTitle": zod.string().nullish(),
+  "correct": zod.boolean(),
+  "userAnswer": zod.string(),
+  "correctAnswer": zod.string(),
+  "explanation": zod.string(),
+  "feedback": zod.string()
+})),
+  "focusReport": zod.object({
+  "summary": zod.string(),
+  "readiness": zod.number().describe('0..100 estimate of readiness for the graded version'),
+  "pointers": zod.array(zod.object({
+  "topicTitle": zod.string(),
+  "issue": zod.string(),
+  "action": zod.string(),
+  "masteryPercent": zod.number().nullish()
+})),
+  "encouragement": zod.string()
+})
+})
+
+
+/**
+ * @summary Get the graded result (feedback + focus report) of a submitted practice attempt
+ */
+export const GetPracticeAssignmentResultParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GetPracticeAssignmentResultResponse = zod.object({
+  "id": zod.number(),
+  "score": zod.number(),
+  "total": zod.number(),
+  "percent": zod.number(),
+  "perProblem": zod.array(zod.object({
+  "problemId": zod.number(),
+  "position": zod.number(),
+  "prompt": zod.string(),
+  "topicTitle": zod.string().nullish(),
+  "correct": zod.boolean(),
+  "userAnswer": zod.string(),
+  "correctAnswer": zod.string(),
+  "explanation": zod.string(),
+  "feedback": zod.string()
+})),
+  "focusReport": zod.object({
+  "summary": zod.string(),
+  "readiness": zod.number().describe('0..100 estimate of readiness for the graded version'),
+  "pointers": zod.array(zod.object({
+  "topicTitle": zod.string(),
+  "issue": zod.string(),
+  "action": zod.string(),
+  "masteryPercent": zod.number().nullish()
+})),
+  "encouragement": zod.string()
+})
+})
+
+
+/**
+ * @summary Dialogue with the app about the feedback on a practice attempt (optionally scoped to one problem)
+ */
+export const PracticeFeedbackChatParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const PracticeFeedbackChatBody = zod.object({
+  "message": zod.string(),
+  "problemId": zod.number().nullish()
+})
+
+export const PracticeFeedbackChatResponse = zod.object({
+  "reply": zod.string()
+})
+
+
+/**
+ * @summary Get the feedback-dialogue history for a practice attempt
+ */
+export const GetPracticeFeedbackMessagesParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GetPracticeFeedbackMessagesResponseItem = zod.object({
+  "id": zod.number(),
+  "problemId": zod.number().nullish(),
+  "role": zod.enum(['user', 'assistant']),
+  "content": zod.string(),
+  "at": zod.coerce.date()
+})
+export const GetPracticeFeedbackMessagesResponse = zod.array(GetPracticeFeedbackMessagesResponseItem)
+
+
+/**
+ * @summary List past practice attempts for a graded assignment (drives readiness + encouragement)
+ */
+export const GetPracticeAssignmentHistoryParams = zod.object({
+  "sourceAssignmentId": zod.coerce.number()
+})
+
+export const GetPracticeAssignmentHistoryResponse = zod.object({
+  "attempts": zod.number(),
+  "bestPercent": zod.number().nullable(),
+  "lastPercent": zod.number().nullable(),
+  "readiness": zod.number().describe('0..100 readiness estimate for the graded version'),
+  "items": zod.array(zod.object({
+  "id": zod.number(),
+  "percent": zod.number().nullable(),
+  "submittedAt": zod.coerce.date().nullable()
+}))
+})
+
+
