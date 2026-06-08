@@ -5,6 +5,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Link } from "wouter";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
+import { Sparkles } from "lucide-react";
 
 export default function Assignments() {
   const { data: assignments, isLoading } = useListAssignments();
@@ -61,12 +62,20 @@ export default function Assignments() {
                             <span className="font-semibold text-foreground">Score: {item.bestScore}%</span>
                           )}
                         </div>
-                        <Link href={`/assignments/${item.id}`}>
-                          <Button className="w-full" variant={item.status === 'submitted' ? "outline" : "default"}>
-                            {item.status === 'submitted' ? 'Review Results' : 
-                             item.status === 'in_progress' ? 'Resume' : 'Start'}
-                          </Button>
-                        </Link>
+                        <div className="flex flex-col gap-2">
+                          <Link href={`/assignments/${item.id}/practice`}>
+                            <Button className="w-full" variant="secondary" data-testid={`button-practice-${item.id}`}>
+                              <Sparkles className="w-4 h-4 mr-2" />
+                              Practice first (unlimited, ungraded)
+                            </Button>
+                          </Link>
+                          <Link href={`/assignments/${item.id}`}>
+                            <Button className="w-full" variant={item.status === 'submitted' ? "outline" : "default"}>
+                              {item.status === 'submitted' ? 'Review Results' :
+                               item.status === 'in_progress' ? 'Resume' : 'Start graded assignment'}
+                            </Button>
+                          </Link>
+                        </div>
                       </CardContent>
                     </Card>
                   ))}

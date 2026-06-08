@@ -15,6 +15,7 @@ import {
 import { chatText, chatJson, FAST_MODEL } from "../lib/ai";
 import { detect, gptzeroAiScore } from "../lib/detection";
 import { gradeAnswer } from "../lib/grading";
+import { reseedCourse } from "../lib/seed";
 
 const router: IRouter = Router();
 
@@ -687,6 +688,21 @@ router.post("/diagnostics/reset", async (_req, res) => {
   await db.delete(answersTable);
   await db.delete(attemptsTable);
   res.json({ ok: true, resetAt: new Date().toISOString() });
+});
+
+// ---------- Reseed: wipe ALL content + progress and re-seed from definitions ----------
+// Destructive: drops course content and progress, then repopulates. Used after
+// changing seed content (e.g. assignment questions).
+router.post("/diagnostics/reseed", async (req, res) => {
+  if (process.env.NODE_ENV === "production") {
+    req.log.warn("Blocked /diagnostics/reseed attempt in production");
+    res
+      .status(403)
+      .json({ ok: false, error: "Reseed is disabled in production." });
+    return;
+  }
+  await reseedCourse();
+  res.json({ ok: true, reseededAt: new Date().toISOString() });
 });
 
 export default router;

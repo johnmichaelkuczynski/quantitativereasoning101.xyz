@@ -278,6 +278,72 @@ paths:
               schema:
                 $ref: "#/components/schemas/PracticeGrade"
 
+  /assignments/{assignmentId}/practice:
+    post:
+      operationId: generateAssignmentPractice
+      tags: [practice]
+      summary: Generate an infinitely-regenerable practice set mirroring a graded assignment
+      parameters:
+        - name: assignmentId
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AssignmentPracticeSet"
+
+  /practice/sessions/{sessionId}/feedback:
+    post:
+      operationId: gradePracticeWithFeedback
+      tags: [practice]
+      summary: Grade a practice answer and return rich coaching feedback + model answer
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PracticeFeedbackInput"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PracticeFeedback"
+
+  /practice/sessions/{sessionId}/discuss:
+    post:
+      operationId: discussPracticeProblem
+      tags: [practice]
+      summary: Chat with the tutor about a specific practice problem (server-side answer lookup)
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PracticeDiscussInput"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PracticeDiscussReply"
+
   /tutor/ask:
     post:
       operationId: askTutor
@@ -619,6 +685,69 @@ components:
         explanation: { type: string }
         newDifficulty: { type: number }
         tutorTip: { type: ["string", "null"] }
+
+    AssignmentPracticeSet:
+      type: object
+      required: [sessionId, assignmentId, assignmentTitle, tutorEnabled, problems]
+      properties:
+        sessionId: { type: integer }
+        assignmentId: { type: integer }
+        assignmentTitle: { type: string }
+        kind:
+          type: string
+          enum: [homework, test, midterm, final]
+        tutorEnabled: { type: boolean }
+        problems:
+          type: array
+          items:
+            $ref: "#/components/schemas/PracticeProblem"
+
+    PracticeFeedbackInput:
+      type: object
+      required: [problemId, answer]
+      properties:
+        problemId: { type: integer }
+        answer: { type: string }
+        trace:
+          $ref: "#/components/schemas/KeystrokeTrace"
+
+    PracticeFeedback:
+      type: object
+      required: [problemId, correct, modelAnswer, feedback]
+      properties:
+        problemId: { type: integer }
+        correct: { type: boolean }
+        modelAnswer: { type: string }
+        feedback:
+          type: string
+          description: Rich markdown coaching feedback on the student's answer
+        explanation: { type: string }
+
+    PracticeDiscussInput:
+      type: object
+      required: [problemId, message]
+      properties:
+        problemId: { type: integer }
+        message: { type: string }
+        history:
+          type: array
+          items:
+            $ref: "#/components/schemas/PracticeDiscussTurn"
+
+    PracticeDiscussTurn:
+      type: object
+      required: [role, content]
+      properties:
+        role:
+          type: string
+          enum: [user, assistant]
+        content: { type: string }
+
+    PracticeDiscussReply:
+      type: object
+      required: [reply]
+      properties:
+        reply: { type: string }
 
     TutorAskInput:
       type: object

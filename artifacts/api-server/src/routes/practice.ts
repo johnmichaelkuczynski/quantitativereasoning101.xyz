@@ -1,8 +1,10 @@
 import { Router, type IRouter } from "express";
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, asc, desc, eq, sql } from "drizzle-orm";
 import {
   db,
   topicsTable,
+  assignmentsTable,
+  problemsTable,
   practiceSessionsTable,
   practiceProblemsTable,
   practiceAttemptsTable,
@@ -14,8 +16,13 @@ import {
   NextPracticeProblemResponse,
   GradePracticeAnswerBody,
   GradePracticeAnswerResponse,
+  GenerateAssignmentPracticeResponse,
+  GradePracticeWithFeedbackBody,
+  GradePracticeWithFeedbackResponse,
+  DiscussPracticeProblemBody,
+  DiscussPracticeProblemResponse,
 } from "@workspace/api-zod";
-import { chatJson } from "../lib/ai";
+import { chatJson, chatText } from "../lib/ai";
 import { gradeAnswer } from "../lib/grading";
 
 const router: IRouter = Router();
@@ -278,6 +285,236 @@ router.post("/practice/sessions/:sessionId/grade", async (req, res): Promise<voi
       tutorTip,
     }),
   );
+});
+
+// ---------- Assignment practice: infinitely-regenerable set mirroring a graded assignment ----------
+router.post("/assignments/:assignmentId/practice", async (req, res): Promise<void> => {
+  const assignmentId = parseIdParam(req.params.assignmentId);
+  if (!Number.isFinite(assignmentId)) {
+    res.status(400).json({ error: "invalid id" });
+    return;
+  }
+  const [assignment] = await db
+    .select()
+    .from(assignmentsTable)
+    .where(eq(assignmentsTable.id, assignmentId));
+  if (!assignment) {
+    res.status(404).json({ error: "assignment not found" });
+    return;
+  }
+
+  // Source problems define the topics + style to mirror.
+  const sourceProblems = await db
+    .select({
+      prompt: problemsTable.prompt,
+      correctAnswer: problemsTable.correctAnswer,
+      topicId: problemsTable.topicId,
+      topicTitle: topicsTable.title,
+    })
+    .from(problemsTable)
+    .leftJoin(topicsTable, eq(problemsTable.topicId, topicsTable.id))
+    .where(eq(problemsTable.assignmentId, assignmentId))
+    .orderBy(asc(problemsTable.position));
+
+  if (sourceProblems.length === 0) {
+    res.status(404).json({ error: "assignment has no problems" });
+    return;
+  }
+
+  // A fresh session each time => infinite regeneration of distinct sets.
+  const [session] = await db
+    .insert(practiceSessionsTable)
+    .values({
+      weekNumber: assignment.weekNumber,
+      topicId: null,
+      tutorEnabled: true,
+      focusOnWeaknesses: false,
+      difficulty: 3.0,
+    })
+    .returning();
+  if (!session) {
+    res.status(500).json({ error: "failed to create session" });
+    return;
+  }
+
+  // Generate one fresh, substantive practice problem per source problem, on the same topic.
+  const generated = await Promise.all(
+    sourceProblems.map(async (src) => {
+      const topicTitle = src.topicTitle ?? "this topic";
+      let out: { prompt: string; correctAnswer: string; explanation: string };
+      try {
+        out = await chatJson<{ prompt: string; correctAnswer: string; explanation: string }>(
+          `You write ONE college ethics practice question that mirrors a graded question but is NOT identical to it. Requirements: (1) it must be on the topic "${topicTitle}"; (2) it MUST require a substantive, multi-sentence reasoned answer — NEVER a one-word, yes/no, true/false, fill-in-the-blank, or "define in N words" question; (3) provide a rich model answer of 3-5 sentences. Respond as strict JSON: {"prompt": string, "correctAnswer": string, "explanation": string} where explanation is a one-sentence summary of the key point.`,
+          `Graded question to mirror (write a different one on the same idea):\n"""\n${src.prompt}\n"""\nModel answer of the graded question (for grounding, do not copy):\n"""\n${src.correctAnswer}\n"""`,
+        );
+      } catch {
+        out = {
+          prompt: `Explain the central idea of "${topicTitle}" in your own words, and illustrate it with an example. Then explain why it matters for moral reasoning.`,
+          correctAnswer: src.correctAnswer,
+          explanation: `Re-read the lecture on ${topicTitle} and state its main claim, an example, and its significance.`,
+        };
+      }
+      const [stored] = await db
+        .insert(practiceProblemsTable)
+        .values({
+          sessionId: session.id,
+          topicId: src.topicId,
+          prompt: out.prompt,
+          correctAnswer: out.correctAnswer,
+          explanation: out.explanation,
+          difficulty: 3.0,
+        })
+        .returning();
+      return { stored, topicTitle };
+    }),
+  );
+
+  res.json(
+    GenerateAssignmentPracticeResponse.parse({
+      sessionId: session.id,
+      assignmentId: assignment.id,
+      assignmentTitle: assignment.title,
+      kind: assignment.kind as "homework" | "test" | "midterm" | "final",
+      tutorEnabled: true,
+      problems: generated
+        .filter((g) => g.stored)
+        .map((g) => ({
+          id: g.stored!.id,
+          prompt: g.stored!.prompt,
+          topicId: g.stored!.topicId,
+          topicTitle: g.topicTitle,
+          difficulty: g.stored!.difficulty,
+        })),
+    }),
+  );
+});
+
+// ---------- Practice grading with rich coaching feedback + model answer ----------
+router.post("/practice/sessions/:sessionId/feedback", async (req, res): Promise<void> => {
+  const sessionId = parseIdParam(req.params.sessionId);
+  const parsed = GradePracticeWithFeedbackBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+  const { problemId, answer, trace } = parsed.data;
+  const [session] = await db
+    .select()
+    .from(practiceSessionsTable)
+    .where(eq(practiceSessionsTable.id, sessionId));
+  if (!session) {
+    res.status(404).json({ error: "session not found" });
+    return;
+  }
+  const [problem] = await db
+    .select()
+    .from(practiceProblemsTable)
+    .where(
+      and(
+        eq(practiceProblemsTable.id, problemId),
+        eq(practiceProblemsTable.sessionId, sessionId),
+      ),
+    );
+  if (!problem) {
+    res.status(404).json({ error: "problem not found in this session" });
+    return;
+  }
+
+  const graded = await gradeAnswer({
+    prompt: problem.prompt,
+    correctAnswer: problem.correctAnswer,
+    userAnswer: answer,
+  });
+
+  await db.insert(practiceAttemptsTable).values({
+    sessionId,
+    problemId,
+    topicId: problem.topicId,
+    answer,
+    correct: graded.correct,
+    difficulty: problem.difficulty,
+    trace: trace ?? null,
+  });
+
+  let feedback = "";
+  try {
+    feedback = await chatText(
+      "You are an encouraging college ethics tutor giving feedback on a PRACTICE answer (not graded for a record). Write warm, specific markdown feedback (4-8 sentences). Name what the student got right, pinpoint what is missing or mistaken, and give one concrete suggestion for strengthening the answer. Do NOT simply restate the model answer; coach them toward it. Use short paragraphs or a couple of bullet points.",
+      JSON.stringify({
+        question: problem.prompt,
+        model_answer: problem.correctAnswer,
+        student_answer: answer,
+        verdict: graded.correct ? "on the right track" : "needs work",
+      }),
+    );
+  } catch {
+    feedback = graded.correct
+      ? "Nice work — your answer captures the key idea. Compare it with the model answer below to see if there's any nuance you can add."
+      : "You're not quite there yet. Re-read the model answer below, then try to explain the core idea in your own words and add a concrete example.";
+  }
+
+  res.json(
+    GradePracticeWithFeedbackResponse.parse({
+      problemId,
+      correct: graded.correct,
+      modelAnswer: problem.correctAnswer,
+      feedback,
+      explanation: graded.explanation || problem.explanation,
+    }),
+  );
+});
+
+// ---------- Practice discussion: chat about a specific problem (answer stays server-side) ----------
+router.post("/practice/sessions/:sessionId/discuss", async (req, res): Promise<void> => {
+  const sessionId = parseIdParam(req.params.sessionId);
+  const parsed = DiscussPracticeProblemBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+  const { problemId, message, history } = parsed.data;
+  const [session] = await db
+    .select()
+    .from(practiceSessionsTable)
+    .where(eq(practiceSessionsTable.id, sessionId));
+  if (!session) {
+    res.status(404).json({ error: "session not found" });
+    return;
+  }
+  const [problem] = await db
+    .select()
+    .from(practiceProblemsTable)
+    .where(
+      and(
+        eq(practiceProblemsTable.id, problemId),
+        eq(practiceProblemsTable.sessionId, sessionId),
+      ),
+    );
+  if (!problem) {
+    res.status(404).json({ error: "problem not found in this session" });
+    return;
+  }
+
+  const priorTurns = Array.isArray(history)
+    ? history
+        .slice(-8)
+        .map((t) => `${t.role === "assistant" ? "Tutor" : "Student"}: ${t.content}`)
+        .join("\n")
+    : "";
+
+  const sys =
+    "You are an encouraging college ethics tutor discussing a single practice problem with a student. You may reference the model answer to guide the student, but do not just paste it — explain, give examples, and ask guiding questions. Keep replies to 3-6 sentences unless asked for more.";
+  const user = `PRACTICE PROBLEM:\n"""\n${problem.prompt}\n"""\n\nMODEL ANSWER (for your guidance only):\n"""\n${problem.correctAnswer}\n"""\n${priorTurns ? `\nConversation so far:\n${priorTurns}\n` : ""}\nStudent says: ${message}`;
+
+  let reply = "";
+  try {
+    reply = await chatText(sys, user);
+  } catch {
+    reply =
+      "I'm having trouble reaching the tutor service right now. Try again in a moment, and in the meantime re-read the relevant lecture section.";
+  }
+
+  res.json(DiscussPracticeProblemResponse.parse({ reply }));
 });
 
 export default router;

@@ -257,6 +257,63 @@ export interface PracticeGrade {
   tutorTip?: string | null;
 }
 
+export type AssignmentPracticeSetKind = typeof AssignmentPracticeSetKind[keyof typeof AssignmentPracticeSetKind];
+
+
+export const AssignmentPracticeSetKind = {
+  homework: 'homework',
+  test: 'test',
+  midterm: 'midterm',
+  final: 'final',
+} as const;
+
+export interface AssignmentPracticeSet {
+  sessionId: number;
+  assignmentId: number;
+  assignmentTitle: string;
+  kind?: AssignmentPracticeSetKind;
+  tutorEnabled: boolean;
+  problems: PracticeProblem[];
+}
+
+export interface PracticeFeedbackInput {
+  problemId: number;
+  answer: string;
+  trace?: KeystrokeTrace;
+}
+
+export interface PracticeFeedback {
+  problemId: number;
+  correct: boolean;
+  modelAnswer: string;
+  /** Rich markdown coaching feedback on the student's answer */
+  feedback: string;
+  explanation?: string;
+}
+
+export type PracticeDiscussTurnRole = typeof PracticeDiscussTurnRole[keyof typeof PracticeDiscussTurnRole];
+
+
+export const PracticeDiscussTurnRole = {
+  user: 'user',
+  assistant: 'assistant',
+} as const;
+
+export interface PracticeDiscussTurn {
+  role: PracticeDiscussTurnRole;
+  content: string;
+}
+
+export interface PracticeDiscussInput {
+  problemId: number;
+  message: string;
+  history?: PracticeDiscussTurn[];
+}
+
+export interface PracticeDiscussReply {
+  reply: string;
+}
+
 export interface TutorAskInput {
   /** @nullable */
   sessionId?: number | null;

@@ -9,9 +9,15 @@ interface AnswerInputProps {
   placeholder?: string;
   disabled?: boolean;
   promptSource?: string;
+  /**
+   * Prose mode: for substantive multi-sentence written answers. Uses a
+   * readable serif/sans body font instead of the large monospace math style,
+   * and hides the math keyboard + quick-pick symbol bar.
+   */
+  prose?: boolean;
 }
 
-export function AnswerInput({ value, onChange, placeholder, disabled, promptSource }: AnswerInputProps) {
+export function AnswerInput({ value, onChange, placeholder, disabled, promptSource, prose }: AnswerInputProps) {
   const [sessionValue, setSessionValue] = useState(value);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
@@ -151,7 +157,7 @@ export function AnswerInput({ value, onChange, placeholder, disabled, promptSour
 
   return (
     <div className="flex flex-col gap-2 w-full">
-      {promptSource && !disabled && (
+      {promptSource && !disabled && !prose && (
         <QuickPickBar source={promptSource} onInsert={insertAtCursor} />
       )}
       <textarea
@@ -161,12 +167,21 @@ export function AnswerInput({ value, onChange, placeholder, disabled, promptSour
         onKeyDown={handleKeyDown}
         onPaste={handlePaste}
         onDrop={handleDrop}
-        placeholder={placeholder || "Type your answer here..."}
+        placeholder={
+          placeholder ||
+          (prose
+            ? "Write your answer in a few complete sentences…"
+            : "Type your answer here...")
+        }
         disabled={disabled}
-        className="w-full min-h-[180px] p-5 bg-card border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-primary font-mono text-2xl leading-relaxed resize-y"
+        className={
+          prose
+            ? "w-full min-h-[200px] p-4 bg-card border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-primary text-base leading-relaxed resize-y"
+            : "w-full min-h-[180px] p-5 bg-card border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-primary font-mono text-2xl leading-relaxed resize-y"
+        }
       />
       <span className="text-xs text-muted-foreground px-1">Pasting is disabled.</span>
-      {!disabled && (
+      {!disabled && !prose && (
         <MathKeyboard
           onInsert={insertAtCursor}
           onBackspace={backspaceAtCursor}

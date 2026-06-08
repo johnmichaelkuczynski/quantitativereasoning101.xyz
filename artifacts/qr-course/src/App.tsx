@@ -25,6 +25,7 @@ import Analytics from "@/pages/Analytics";
 import WeekView from "@/pages/WeekView";
 import LectureView from "@/pages/LectureView";
 import AssignmentRunner from "@/pages/AssignmentRunner";
+import PracticeAssignment from "@/pages/PracticeAssignment";
 import Diagnostics from "@/pages/Diagnostics";
 import TopicPractice from "@/pages/TopicPractice";
 
@@ -182,6 +183,10 @@ function Router() {
       <Route path="/sign-up/*?" component={SignUpPage} />
       <Route path="/dashboard" component={protectedComponent(Dashboard)} />
       <Route path="/assignments" component={protectedComponent(Assignments)} />
+      <Route
+        path="/assignments/:id/practice"
+        component={protectedComponent(PracticeAssignment)}
+      />
       <Route
         path="/assignments/:id"
         component={protectedComponent(AssignmentRunner)}

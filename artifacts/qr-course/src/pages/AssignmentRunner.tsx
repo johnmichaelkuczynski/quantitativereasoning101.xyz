@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AnswerInput } from "@/components/AnswerInput";
 import { MarkdownRenderer } from "@/components/MarkdownRenderer";
+import { Sparkles } from "lucide-react";
 
 export default function AssignmentRunner() {
   const params = useParams();
@@ -158,6 +159,24 @@ export default function AssignmentRunner() {
           )}
         </div>
 
+        {currentProblemIdx === 0 && (
+          <div className="flex items-start gap-3 rounded-md border border-primary/30 bg-primary/5 px-4 py-3 text-sm">
+            <Sparkles className="w-4 h-4 mt-0.5 shrink-0 text-primary" />
+            <div className="flex-1">
+              <span className="font-medium text-foreground">This is the graded version.</span>{" "}
+              <span className="text-muted-foreground">
+                The tutor is hidden here. Want to warm up first? Try unlimited, ungraded
+                practice with the live tutor and rich feedback.
+              </span>
+            </div>
+            <Link href={`/assignments/${assignmentId}/practice`}>
+              <Button size="sm" variant="outline" className="shrink-0">
+                Practice first
+              </Button>
+            </Link>
+          </div>
+        )}
+
         {currentProblem ? (
           <div className="flex flex-col gap-8">
             <div className="prose prose-slate dark:prose-invert max-w-none text-lg">
@@ -168,7 +187,7 @@ export default function AssignmentRunner() {
               <AnswerInput 
                 value={answers[currentProblem.id] || ""}
                 onChange={(val, trace) => handleAnswerChange(currentProblem.id, val, trace)}
-                promptSource={currentProblem.prompt}
+                prose
               />
             </div>
 

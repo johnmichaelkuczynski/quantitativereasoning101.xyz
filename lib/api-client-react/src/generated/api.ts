@@ -26,6 +26,7 @@ import type {
   AnswerInput,
   AnswerSaved,
   Assignment,
+  AssignmentPracticeSet,
   AssignmentSummary,
   AttemptResult,
   AttemptState,
@@ -36,6 +37,10 @@ import type {
   Lecture,
   NextProblemInput,
   PracticeAnswerInput,
+  PracticeDiscussInput,
+  PracticeDiscussReply,
+  PracticeFeedback,
+  PracticeFeedbackInput,
   PracticeGrade,
   PracticeProblem,
   PracticeSession,
@@ -1100,6 +1105,220 @@ export const useGradePracticeAnswer = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getGradePracticeAnswerMutationOptions(options));
+    }
+
+export const getGenerateAssignmentPracticeUrl = (assignmentId: number,) => {
+
+
+
+
+  return `/api/assignments/${assignmentId}/practice`
+}
+
+/**
+ * @summary Generate an infinitely-regenerable practice set mirroring a graded assignment
+ */
+export const generateAssignmentPractice = async (assignmentId: number, options?: RequestInit): Promise<AssignmentPracticeSet> => {
+
+  return customFetch<AssignmentPracticeSet>(getGenerateAssignmentPracticeUrl(assignmentId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getGenerateAssignmentPracticeMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof generateAssignmentPractice>>, TError,{assignmentId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof generateAssignmentPractice>>, TError,{assignmentId: number}, TContext> => {
+
+const mutationKey = ['generateAssignmentPractice'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof generateAssignmentPractice>>, {assignmentId: number}> = (props) => {
+          const {assignmentId} = props ?? {};
+
+          return  generateAssignmentPractice(assignmentId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type GenerateAssignmentPracticeMutationResult = NonNullable<Awaited<ReturnType<typeof generateAssignmentPractice>>>
+
+    export type GenerateAssignmentPracticeMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Generate an infinitely-regenerable practice set mirroring a graded assignment
+ */
+export const useGenerateAssignmentPractice = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof generateAssignmentPractice>>, TError,{assignmentId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof generateAssignmentPractice>>,
+        TError,
+        {assignmentId: number},
+        TContext
+      > => {
+      return useMutation(getGenerateAssignmentPracticeMutationOptions(options));
+    }
+
+export const getGradePracticeWithFeedbackUrl = (sessionId: number,) => {
+
+
+
+
+  return `/api/practice/sessions/${sessionId}/feedback`
+}
+
+/**
+ * @summary Grade a practice answer and return rich coaching feedback + model answer
+ */
+export const gradePracticeWithFeedback = async (sessionId: number,
+    practiceFeedbackInput: PracticeFeedbackInput, options?: RequestInit): Promise<PracticeFeedback> => {
+
+  return customFetch<PracticeFeedback>(getGradePracticeWithFeedbackUrl(sessionId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      practiceFeedbackInput,)
+  }
+);}
+
+
+
+
+export const getGradePracticeWithFeedbackMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof gradePracticeWithFeedback>>, TError,{sessionId: number;data: BodyType<PracticeFeedbackInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof gradePracticeWithFeedback>>, TError,{sessionId: number;data: BodyType<PracticeFeedbackInput>}, TContext> => {
+
+const mutationKey = ['gradePracticeWithFeedback'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof gradePracticeWithFeedback>>, {sessionId: number;data: BodyType<PracticeFeedbackInput>}> = (props) => {
+          const {sessionId,data} = props ?? {};
+
+          return  gradePracticeWithFeedback(sessionId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type GradePracticeWithFeedbackMutationResult = NonNullable<Awaited<ReturnType<typeof gradePracticeWithFeedback>>>
+    export type GradePracticeWithFeedbackMutationBody = BodyType<PracticeFeedbackInput>
+    export type GradePracticeWithFeedbackMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Grade a practice answer and return rich coaching feedback + model answer
+ */
+export const useGradePracticeWithFeedback = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof gradePracticeWithFeedback>>, TError,{sessionId: number;data: BodyType<PracticeFeedbackInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof gradePracticeWithFeedback>>,
+        TError,
+        {sessionId: number;data: BodyType<PracticeFeedbackInput>},
+        TContext
+      > => {
+      return useMutation(getGradePracticeWithFeedbackMutationOptions(options));
+    }
+
+export const getDiscussPracticeProblemUrl = (sessionId: number,) => {
+
+
+
+
+  return `/api/practice/sessions/${sessionId}/discuss`
+}
+
+/**
+ * @summary Chat with the tutor about a specific practice problem (server-side answer lookup)
+ */
+export const discussPracticeProblem = async (sessionId: number,
+    practiceDiscussInput: PracticeDiscussInput, options?: RequestInit): Promise<PracticeDiscussReply> => {
+
+  return customFetch<PracticeDiscussReply>(getDiscussPracticeProblemUrl(sessionId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      practiceDiscussInput,)
+  }
+);}
+
+
+
+
+export const getDiscussPracticeProblemMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof discussPracticeProblem>>, TError,{sessionId: number;data: BodyType<PracticeDiscussInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof discussPracticeProblem>>, TError,{sessionId: number;data: BodyType<PracticeDiscussInput>}, TContext> => {
+
+const mutationKey = ['discussPracticeProblem'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof discussPracticeProblem>>, {sessionId: number;data: BodyType<PracticeDiscussInput>}> = (props) => {
+          const {sessionId,data} = props ?? {};
+
+          return  discussPracticeProblem(sessionId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DiscussPracticeProblemMutationResult = NonNullable<Awaited<ReturnType<typeof discussPracticeProblem>>>
+    export type DiscussPracticeProblemMutationBody = BodyType<PracticeDiscussInput>
+    export type DiscussPracticeProblemMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Chat with the tutor about a specific practice problem (server-side answer lookup)
+ */
+export const useDiscussPracticeProblem = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof discussPracticeProblem>>, TError,{sessionId: number;data: BodyType<PracticeDiscussInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof discussPracticeProblem>>,
+        TError,
+        {sessionId: number;data: BodyType<PracticeDiscussInput>},
+        TContext
+      > => {
+      return useMutation(getDiscussPracticeProblemMutationOptions(options));
     }
 
 export const getAskTutorUrl = () => {
