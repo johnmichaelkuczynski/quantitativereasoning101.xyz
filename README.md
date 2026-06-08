@@ -1,4 +1,4 @@
-# ⚖️ EthosReason
+# ⚖️ Ethics 101
 
 **A Four-Unit College Ethics Course — From the Nature of Goodness to Moral Truth Itself**
 
@@ -6,11 +6,11 @@
 
 ## 🧩 Overview
 
-EthosReason is a self-paced, single-user web course that asks the question most ethics classes rush past: *what are these things, really?* What is goodness? What makes an act right, or wrong? When we praise or condemn someone, what exactly are we judging? Is there such a thing as moral truth — and if so, can you ever derive it from plain facts?
+Ethics 101 is a self-paced, single-user web course that asks the question most ethics classes rush past: *what are these things, really?* What is goodness? What makes an act right, or wrong? When we praise or condemn someone, what exactly are we judging? Is there such a thing as moral truth — and if so, can you ever derive it from plain facts?
 
 It is a complete, taught-and-graded Ethics course delivered end to end by AI: depth-adjustable lectures, a tutor that answers questions about the exact passage you're reading, adaptive practice that meets you at your level, and homework, tests, a midterm, and a final that are graded with written feedback. The curriculum is built around one connected arc of moral philosophy — the same backbone an undergraduate eventually meets in a semester ethics seminar, presented in four focused units.
 
-Designed for **students, self-learners, and instructors evaluating AI-taught coursework**, EthosReason pairs a real 27-topic syllabus with a built-in academic-integrity layer — so the course is one students can trust to be fair, and instructors can trust to be honest.
+Designed for **students, self-learners, and instructors evaluating AI-taught coursework**, Ethics 101 pairs a real 27-topic syllabus with a built-in academic-integrity layer — so the course is one students can trust to be fair, and instructors can trust to be honest.
 
 ---
 
@@ -70,4 +70,4 @@ Most ethics talk argues the *verdicts* — was this act right, was that person t
 
 Read the idea, ground it in a real example, then state the moral judgment in your own words — and let the course check your reasoning fairly every step of the way.
 
-**EthosReason — read the idea, ground the idea, write the idea.**
+**Ethics 101 — read the idea, ground the idea, write the idea.**

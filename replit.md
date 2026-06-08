@@ -1,4 +1,4 @@
-# ⚖️ EthosReason
+# ⚖️ Ethics 101
 
 **The Ethics Studio — A Four-Unit College Course That Teaches, Tutors, and Proofs Itself**
 
@@ -6,13 +6,13 @@
 
 ## 🧩 Overview
 
-EthosReason is a self-paced, single-user web course that delivers a full college Ethics curriculum — taught, tutored, drilled, and graded entirely by AI, with built-in academic-integrity enforcement.
+Ethics 101 is a self-paced, single-user web course that delivers a full college Ethics curriculum — taught, tutored, drilled, and graded entirely by AI, with built-in academic-integrity enforcement.
 
 It compresses the experience of a semester-style ethics class into one focused product: read the lecture at the depth you want, ask a tutor scoped to the exact section you're on, drill problems whose difficulty adapts to you in real time, and submit homework, tests, a midterm, and a final that are AI-graded with feedback and screened for AI-generated answers.
 
 The curriculum is grounded in the source text **"Some Fundamental Principles Relating to Ethics"** and is organized into **four units and 27 topics**: Unit 1 (Foundations of Value), Unit 2 (Obligation, Right, and Wrong), Unit 3 (Acts, Agents, and Judgment), and Unit 4 (Metaethics and Moral Truth).
 
-Designed for **students, instructors evaluating AI-taught coursework, and researchers studying AI academic integrity**, EthosReason pairs a real curriculum with two layers of AI-authorship detection — surfacing not just *whether* the writing looks AI-generated, but whether the *act of producing it* did.
+Designed for **students, instructors evaluating AI-taught coursework, and researchers studying AI academic integrity**, Ethics 101 pairs a real curriculum with two layers of AI-authorship detection — surfacing not just *whether* the writing looks AI-generated, but whether the *act of producing it* did.
 
 ---
 
@@ -58,11 +58,11 @@ Designed for **students, instructors evaluating AI-taught coursework, and resear
 
 ## 💡 Core Idea
 
-EthosReason reframes an AI-taught course as a *closed accountability loop*.
+Ethics 101 reframes an AI-taught course as a *closed accountability loop*.
 
 It doesn't just teach the material and grade the homework — it **teaches**, **tutors**, **drills**, **grades**, **detects misuse**, and **proves the whole pipeline still works** with a single click. The result is a self-paced course that students can actually trust to be fair, and that instructors can actually trust to be honest.
 
-**EthosReason — where the curriculum, the tutor, the grader, and the integrity check all live in one room.**
+**Ethics 101 — where the curriculum, the tutor, the grader, and the integrity check all live in one room.**
 
 ---
 

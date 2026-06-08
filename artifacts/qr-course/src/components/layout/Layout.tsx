@@ -21,9 +21,9 @@ export function Sidebar() {
         <Link href="/dashboard">
           <div className="flex items-center gap-3 cursor-pointer">
             <div className="w-8 h-8 bg-primary rounded-md flex items-center justify-center text-primary-foreground font-serif font-bold text-lg">
-              ER
+              E1
             </div>
-            <span className="font-serif font-semibold text-lg tracking-tight">EthosReason</span>
+            <span className="font-serif font-semibold text-lg tracking-tight">Ethics 101</span>
           </div>
         </Link>
       </div>

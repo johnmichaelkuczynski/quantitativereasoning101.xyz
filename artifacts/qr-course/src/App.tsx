@@ -230,7 +230,7 @@ function ClerkProviderWithRoutes() {
         signUp: {
           start: {
             title: "Create your account",
-            subtitle: "Start your Ethics course with EthosReason",
+            subtitle: "Start your Ethics course with Ethics 101",
           },
         },
       }}

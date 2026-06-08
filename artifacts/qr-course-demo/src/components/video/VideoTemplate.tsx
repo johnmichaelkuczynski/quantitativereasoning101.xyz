@@ -90,7 +90,7 @@ export default function VideoTemplate({
       {/* Sidebar - persists across all scenes */}
       <div className="w-64 h-full border-r border-border bg-white flex flex-col pt-8 pb-4 shrink-0 z-20 shadow-sm relative">
         <div className="px-6 mb-8 flex items-center space-x-2">
-          <div className="w-8 h-8 bg-primary text-white flex items-center justify-center font-serif text-xl rounded">ER</div>
+          <div className="w-8 h-8 bg-primary text-white flex items-center justify-center font-serif text-xl rounded">E1</div>
         </div>
 
         <nav className="flex-1 px-4 space-y-1">
