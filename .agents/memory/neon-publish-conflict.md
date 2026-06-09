@@ -9,6 +9,8 @@ This project's app uses an **external Neon Postgres** via a user-set `DATABASE_U
 
 **Symptom:** user reports "it won't publish" / republish does nothing, and `listDeploymentBuilds` shows NO new build attempts after the warning appeared — the click is gated in the Publish UI before a build is ever created.
 
+**REAL ROOT CAUSE (observed, corrects the assumption below):** the actual publish blocker was an **out-of-sync / missing PRODUCTION secret** flagged in the Publish settings ("1 secret out of sync — <NAME> is missing from this environment"). A required prod secret missing silently aborts the deploy: a dialog flashes for an instant and vanishes, and NO build record is ever created. The "External database detected" banner is a **separate harmless warning, not the blocker.** When a republish flashes-and-dies with zero new builds, FIRST check the Publish settings ("Adjust settings") for any out-of-sync/missing production secret and have the user add it. The DB banner is a red herring for the publish-won't-start symptom.
+
 **Key diagnosis facts (verify, don't assume):**
 - `getDeploymentInfo()` can still report `isDeployed:true, hasSuccessfulBuild:true` — that's the last *successful* build still serving; it does NOT mean a new publish succeeded.
 - Build/health pipeline is healthy: `/api/healthz` is a trivial `{status:"ok"}` (no DB), `app.listen` is non-blocking, and `seedIfEmpty()` runs detached (`.catch`), so startup does not block on Neon cold starts.
