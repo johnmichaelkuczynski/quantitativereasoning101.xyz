@@ -11,6 +11,8 @@ import {
   practiceSessionsTable,
   practiceProblemsTable,
   practiceAttemptsTable,
+  assessmentInstancesTable,
+  assessmentProblemsTable,
 } from "@workspace/db";
 import { chatText, chatJson, FAST_MODEL } from "../lib/ai";
 import { detect } from "../lib/detection";
@@ -502,6 +504,8 @@ router.post("/diagnostics/reset", async (_req, res) => {
   await db.delete(practiceAttemptsTable);
   await db.delete(practiceProblemsTable);
   await db.delete(practiceSessionsTable);
+  await db.delete(assessmentProblemsTable);
+  await db.delete(assessmentInstancesTable);
   await db.delete(answersTable);
   await db.delete(attemptsTable);
   res.json({ ok: true, resetAt: new Date().toISOString() });

@@ -290,6 +290,14 @@ export interface AnalyticsSummary {
   strongestTopic?: string | null;
   /** @nullable */
   weakestTopic?: string | null;
+  /** Weighted course grade = 0.8 * officialAverage + 0.2 * diagnosticsBucketPercent */
+  finalGrade: number;
+  /** Number of the 5 graded diagnostic slots that have been submitted */
+  diagnosticsCompleted: number;
+  /** Total graded diagnostic slots (always 5) */
+  diagnosticsTotal: number;
+  /** Completion-based diagnostics grade bucket = diagnosticsCompleted / diagnosticsTotal * 100 */
+  diagnosticsBucketPercent: number;
 }
 
 export type TopicAnalyticsStrengthLabel = typeof TopicAnalyticsStrengthLabel[keyof typeof TopicAnalyticsStrengthLabel];
@@ -465,5 +473,187 @@ export interface CourseOverview {
   title: string;
   weeks: Week[];
   totals: CourseOverviewTotals;
+}
+
+export type AssessmentSlotSlot = typeof AssessmentSlotSlot[keyof typeof AssessmentSlotSlot];
+
+
+export const AssessmentSlotSlot = {
+  baseline: 'baseline',
+  week1: 'week1',
+  week2: 'week2',
+  week3: 'week3',
+  week4: 'week4',
+} as const;
+
+export type AssessmentSlotStatus = typeof AssessmentSlotStatus[keyof typeof AssessmentSlotStatus];
+
+
+export const AssessmentSlotStatus = {
+  not_started: 'not_started',
+  in_progress: 'in_progress',
+  submitted: 'submitted',
+} as const;
+
+export interface AssessmentSlot {
+  slot: AssessmentSlotSlot;
+  title: string;
+  locked: boolean;
+  /** @nullable */
+  unlockHint?: string | null;
+  status: AssessmentSlotStatus;
+  /** @nullable */
+  instanceId?: number | null;
+  /** @nullable */
+  scorePercent?: number | null;
+  /** @nullable */
+  passed?: boolean | null;
+}
+
+export interface AssessmentSelfSummary {
+  attempts: number;
+  /** @nullable */
+  lastScorePercent?: number | null;
+  /** @nullable */
+  lastInstanceId?: number | null;
+}
+
+export interface AssessmentsOverview {
+  slots: AssessmentSlot[];
+  /** Number of the graded slots that have been submitted */
+  completed: number;
+  /** Total graded slots (always 5) */
+  total: number;
+  /** completed / total * 100 (the diagnostics grade bucket) */
+  bucketPercent: number;
+  self: AssessmentSelfSummary;
+}
+
+export type AssessmentInstanceSlot = typeof AssessmentInstanceSlot[keyof typeof AssessmentInstanceSlot];
+
+
+export const AssessmentInstanceSlot = {
+  baseline: 'baseline',
+  week1: 'week1',
+  week2: 'week2',
+  week3: 'week3',
+  week4: 'week4',
+  self: 'self',
+} as const;
+
+export type AssessmentInstanceKind = typeof AssessmentInstanceKind[keyof typeof AssessmentInstanceKind];
+
+
+export const AssessmentInstanceKind = {
+  graded: 'graded',
+  self: 'self',
+} as const;
+
+export type AssessmentInstanceStatus = typeof AssessmentInstanceStatus[keyof typeof AssessmentInstanceStatus];
+
+
+export const AssessmentInstanceStatus = {
+  in_progress: 'in_progress',
+  submitted: 'submitted',
+} as const;
+
+export interface AssessmentProblem {
+  id: number;
+  position: number;
+  domain: string;
+  domainTitle: string;
+  prompt: string;
+  /** @nullable */
+  hint?: string | null;
+  answer?: string;
+}
+
+export interface AssessmentInstance {
+  id: number;
+  slot: AssessmentInstanceSlot;
+  kind: AssessmentInstanceKind;
+  title: string;
+  status: AssessmentInstanceStatus;
+  problems: AssessmentProblem[];
+}
+
+export type AssessmentResultSlot = typeof AssessmentResultSlot[keyof typeof AssessmentResultSlot];
+
+
+export const AssessmentResultSlot = {
+  baseline: 'baseline',
+  week1: 'week1',
+  week2: 'week2',
+  week3: 'week3',
+  week4: 'week4',
+  self: 'self',
+} as const;
+
+export type AssessmentResultKind = typeof AssessmentResultKind[keyof typeof AssessmentResultKind];
+
+
+export const AssessmentResultKind = {
+  graded: 'graded',
+  self: 'self',
+} as const;
+
+export interface AssessmentProblemResult {
+  problemId: number;
+  position: number;
+  domain: string;
+  domainTitle: string;
+  prompt: string;
+  correct: boolean;
+  userAnswer: string;
+  correctAnswer: string;
+  explanation: string;
+  /** @nullable */
+  feedback?: string | null;
+}
+
+export interface AssessmentDomainFeedback {
+  domain: string;
+  domainTitle: string;
+  correct: number;
+  total: number;
+  comment: string;
+}
+
+export interface AssessmentFeedback {
+  overall: string;
+  perDomain: AssessmentDomainFeedback[];
+  /** @nullable */
+  growth?: string | null;
+}
+
+export interface AssessmentResult {
+  id: number;
+  slot: AssessmentResultSlot;
+  kind: AssessmentResultKind;
+  score: number;
+  total: number;
+  percent: number;
+  passed: boolean;
+  perProblem: AssessmentProblemResult[];
+  feedback: AssessmentFeedback;
+}
+
+export interface CreateLectureCustomInput {
+  instructions: string;
+  /** @nullable */
+  sourceText?: string | null;
+  /** @nullable */
+  label?: string | null;
+}
+
+export interface LectureCustomVersion {
+  id: number;
+  lectureId: number;
+  label: string;
+  instructions: string;
+  /** @nullable */
+  sourceText?: string | null;
+  body: string;
+  createdAt: string;
 }
 

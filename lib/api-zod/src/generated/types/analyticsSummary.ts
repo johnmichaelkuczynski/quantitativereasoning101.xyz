@@ -16,4 +16,12 @@ export interface AnalyticsSummary {
   strongestTopic?: string | null;
   /** @nullable */
   weakestTopic?: string | null;
+  /** Weighted course grade = 0.8 * officialAverage + 0.2 * diagnosticsBucketPercent */
+  finalGrade: number;
+  /** Number of the 5 graded diagnostic slots that have been submitted */
+  diagnosticsCompleted: number;
+  /** Total graded diagnostic slots (always 5) */
+  diagnosticsTotal: number;
+  /** Completion-based diagnostics grade bucket = diagnosticsCompleted / diagnosticsTotal * 100 */
+  diagnosticsBucketPercent: number;
 }

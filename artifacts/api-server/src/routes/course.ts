@@ -1,18 +1,24 @@
 import { Router, type IRouter } from "express";
-import { eq, asc, sql } from "drizzle-orm";
+import { eq, asc, desc, sql } from "drizzle-orm";
 import {
   db,
   topicsTable,
   lecturesTable,
   assignmentsTable,
   attemptsTable,
+  lectureCustomVersionsTable,
 } from "@workspace/db";
 import {
   GetCourseOverviewResponse,
   GetWeekResponse,
   GetLectureResponse,
   ListTopicsResponse,
+  ListLectureCustomVersionsResponse,
+  CreateLectureCustomVersionBody,
+  CreateLectureCustomVersionResponse,
+  DeleteLectureCustomVersionResponse,
 } from "@workspace/api-zod";
+import { chatText } from "../lib/ai";
 
 const router: IRouter = Router();
 
@@ -171,5 +177,122 @@ router.get("/course/topics", async (_req, res) => {
     .orderBy(asc(topicsTable.position));
   res.json(ListTopicsResponse.parse(rows));
 });
+
+// ---- Personalized lecture versions (student-authored, alongside the official ones) ----
+router.get(
+  "/course/lectures/:lectureId/custom",
+  async (req, res): Promise<void> => {
+    const raw = Array.isArray(req.params.lectureId)
+      ? req.params.lectureId[0]
+      : req.params.lectureId;
+    const lectureId = parseInt(raw ?? "", 10);
+    if (!Number.isFinite(lectureId)) {
+      res.status(400).json({ error: "invalid lectureId" });
+      return;
+    }
+    const rows = await db
+      .select()
+      .from(lectureCustomVersionsTable)
+      .where(eq(lectureCustomVersionsTable.lectureId, lectureId))
+      .orderBy(desc(lectureCustomVersionsTable.id));
+    res.json(ListLectureCustomVersionsResponse.parse(rows));
+  },
+);
+
+router.post(
+  "/course/lectures/:lectureId/custom",
+  async (req, res): Promise<void> => {
+    const raw = Array.isArray(req.params.lectureId)
+      ? req.params.lectureId[0]
+      : req.params.lectureId;
+    const lectureId = parseInt(raw ?? "", 10);
+    if (!Number.isFinite(lectureId)) {
+      res.status(400).json({ error: "invalid lectureId" });
+      return;
+    }
+    const parsed = CreateLectureCustomVersionBody.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: parsed.error.message });
+      return;
+    }
+    const { instructions, sourceText, label } = parsed.data;
+
+    const [lecture] = await db
+      .select()
+      .from(lecturesTable)
+      .where(eq(lecturesTable.id, lectureId));
+    if (!lecture) {
+      res.status(404).json({ error: "lecture not found" });
+      return;
+    }
+
+    // Base the rewrite on the selected section if provided, else the whole short body.
+    const base = sourceText && sourceText.trim().length > 0 ? sourceText : lecture.body;
+
+    const sys =
+      "You are a college quantitative-reasoning lecturer rewriting a passage of a lecture to fit a student's personal request. RULES, no exceptions:\n" +
+      "1. PRESERVE every concept, definition, fact, and worked result in the source passage. You may reorganize, re-explain, add examples, or change tone/level — but never drop content or introduce errors.\n" +
+      "2. Honor the student's instructions for style, depth, framing, or examples.\n" +
+      "3. Use Markdown. Inline math `$...$`, display math `$$...$$` (escape backslashes in LaTeX commands).\n" +
+      "4. Return ONLY the rewritten Markdown passage. No preface, no commentary, no code fences around the whole thing.";
+    const user =
+      `LECTURE TITLE: ${lecture.title}\n\n` +
+      `STUDENT INSTRUCTIONS:\n"""\n${instructions}\n"""\n\n` +
+      `SOURCE PASSAGE TO REWRITE:\n"""\n${base}\n"""`;
+
+    let body: string;
+    try {
+      const out = await chatText(sys, user);
+      if (!out || out.trim().length < 20) {
+        res.status(502).json({ error: "could not generate a personalized version" });
+        return;
+      }
+      body = out.trim();
+    } catch (e) {
+      req.log.error({ err: e }, "lecture personalize failed");
+      res.status(502).json({ error: "could not generate a personalized version" });
+      return;
+    }
+
+    const finalLabel =
+      label && label.trim().length > 0
+        ? label.trim().slice(0, 80)
+        : instructions.trim().slice(0, 60);
+
+    const [created] = await db
+      .insert(lectureCustomVersionsTable)
+      .values({
+        lectureId,
+        label: finalLabel,
+        instructions,
+        sourceText: sourceText ?? null,
+        body,
+      })
+      .returning();
+    if (!created) {
+      res.status(500).json({ error: "failed to save personalized version" });
+      return;
+    }
+    res.json(CreateLectureCustomVersionResponse.parse(created));
+  },
+);
+
+router.delete(
+  "/course/lectures/custom/:versionId",
+  async (req, res): Promise<void> => {
+    const raw = Array.isArray(req.params.versionId)
+      ? req.params.versionId[0]
+      : req.params.versionId;
+    const versionId = parseInt(raw ?? "", 10);
+    if (!Number.isFinite(versionId)) {
+      res.status(400).json({ error: "invalid versionId" });
+      return;
+    }
+    await db
+      .delete(lectureCustomVersionsTable)
+      .where(eq(lectureCustomVersionsTable.id, versionId));
+    res.json(DeleteLectureCustomVersionResponse.parse({ ok: true }));
+  },
+);
 
 export default router;

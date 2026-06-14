@@ -25,11 +25,15 @@ import type {
   AnalyticsSummary,
   AnswerInput,
   AnswerSaved,
+  AssessmentInstance,
+  AssessmentResult,
+  AssessmentsOverview,
   Assignment,
   AssignmentSummary,
   AttemptResult,
   AttemptState,
   CourseOverview,
+  CreateLectureCustomInput,
   DetectionResult,
   DetectionScanInput,
   FeedbackChatInput,
@@ -38,6 +42,7 @@ import type {
   GeneratePracticeInput,
   HealthStatus,
   Lecture,
+  LectureCustomVersion,
   NextProblemInput,
   PracticeAnswerInput,
   PracticeAssignmentPlayable,
@@ -2144,4 +2149,736 @@ export function useGetPracticeAssignmentHistory<TData = Awaited<ReturnType<typeo
 
 
 
+
+export const getGetAssessmentsOverviewUrl = () => {
+
+
+
+
+  return `/api/assessments`
+}
+
+/**
+ * @summary Overview of the 5 graded diagnostic slots (lock + status) plus the free self-assessment summary
+ */
+export const getAssessmentsOverview = async ( options?: RequestInit): Promise<AssessmentsOverview> => {
+
+  return customFetch<AssessmentsOverview>(getGetAssessmentsOverviewUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAssessmentsOverviewQueryKey = () => {
+    return [
+    `/api/assessments`
+    ] as const;
+    }
+
+
+export const getGetAssessmentsOverviewQueryOptions = <TData = Awaited<ReturnType<typeof getAssessmentsOverview>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAssessmentsOverview>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAssessmentsOverviewQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAssessmentsOverview>>> = ({ signal }) => getAssessmentsOverview({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAssessmentsOverview>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAssessmentsOverviewQueryResult = NonNullable<Awaited<ReturnType<typeof getAssessmentsOverview>>>
+export type GetAssessmentsOverviewQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Overview of the 5 graded diagnostic slots (lock + status) plus the free self-assessment summary
+ */
+
+export function useGetAssessmentsOverview<TData = Awaited<ReturnType<typeof getAssessmentsOverview>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAssessmentsOverview>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAssessmentsOverviewQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getStartAssessmentUrl = (slot: 'baseline' | 'week1' | 'week2' | 'week3' | 'week4',) => {
+
+
+
+
+  return `/api/assessments/${slot}/start`
+}
+
+/**
+ * @summary Start (or resume) a graded diagnostic slot, generating a fresh non-overlapping parallel form
+ */
+export const startAssessment = async (slot: 'baseline' | 'week1' | 'week2' | 'week3' | 'week4', options?: RequestInit): Promise<AssessmentInstance> => {
+
+  return customFetch<AssessmentInstance>(getStartAssessmentUrl(slot),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getStartAssessmentMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof startAssessment>>, TError,{slot: 'baseline' | 'week1' | 'week2' | 'week3' | 'week4'}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof startAssessment>>, TError,{slot: 'baseline' | 'week1' | 'week2' | 'week3' | 'week4'}, TContext> => {
+
+const mutationKey = ['startAssessment'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof startAssessment>>, {slot: 'baseline' | 'week1' | 'week2' | 'week3' | 'week4'}> = (props) => {
+          const {slot} = props ?? {};
+
+          return  startAssessment(slot,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type StartAssessmentMutationResult = NonNullable<Awaited<ReturnType<typeof startAssessment>>>
+
+    export type StartAssessmentMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Start (or resume) a graded diagnostic slot, generating a fresh non-overlapping parallel form
+ */
+export const useStartAssessment = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof startAssessment>>, TError,{slot: 'baseline' | 'week1' | 'week2' | 'week3' | 'week4'}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof startAssessment>>,
+        TError,
+        {slot: 'baseline' | 'week1' | 'week2' | 'week3' | 'week4'},
+        TContext
+      > => {
+      return useMutation(getStartAssessmentMutationOptions(options));
+    }
+
+export const getStartSelfAssessmentUrl = () => {
+
+
+
+
+  return `/api/assessments/self/start`
+}
+
+/**
+ * @summary Start a fresh, ungraded self-assessment (unlimited, full-subject parallel form)
+ */
+export const startSelfAssessment = async ( options?: RequestInit): Promise<AssessmentInstance> => {
+
+  return customFetch<AssessmentInstance>(getStartSelfAssessmentUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getStartSelfAssessmentMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof startSelfAssessment>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof startSelfAssessment>>, TError,void, TContext> => {
+
+const mutationKey = ['startSelfAssessment'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof startSelfAssessment>>, void> = () => {
+
+
+          return  startSelfAssessment(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type StartSelfAssessmentMutationResult = NonNullable<Awaited<ReturnType<typeof startSelfAssessment>>>
+
+    export type StartSelfAssessmentMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Start a fresh, ungraded self-assessment (unlimited, full-subject parallel form)
+ */
+export const useStartSelfAssessment = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof startSelfAssessment>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof startSelfAssessment>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getStartSelfAssessmentMutationOptions(options));
+    }
+
+export const getGetAssessmentInstanceUrl = (id: number,) => {
+
+
+
+
+  return `/api/assessments/instances/${id}`
+}
+
+/**
+ * @summary Get an assessment instance with its problems
+ */
+export const getAssessmentInstance = async (id: number, options?: RequestInit): Promise<AssessmentInstance> => {
+
+  return customFetch<AssessmentInstance>(getGetAssessmentInstanceUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAssessmentInstanceQueryKey = (id: number,) => {
+    return [
+    `/api/assessments/instances/${id}`
+    ] as const;
+    }
+
+
+export const getGetAssessmentInstanceQueryOptions = <TData = Awaited<ReturnType<typeof getAssessmentInstance>>, TError = ErrorType<unknown>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAssessmentInstance>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAssessmentInstanceQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAssessmentInstance>>> = ({ signal }) => getAssessmentInstance(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(id), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAssessmentInstance>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAssessmentInstanceQueryResult = NonNullable<Awaited<ReturnType<typeof getAssessmentInstance>>>
+export type GetAssessmentInstanceQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get an assessment instance with its problems
+ */
+
+export function useGetAssessmentInstance<TData = Awaited<ReturnType<typeof getAssessmentInstance>>, TError = ErrorType<unknown>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAssessmentInstance>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAssessmentInstanceQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getSaveAssessmentAnswerUrl = (id: number,) => {
+
+
+
+
+  return `/api/assessments/instances/${id}/answer`
+}
+
+/**
+ * @summary Save (or update) a single assessment answer with keystroke trace
+ */
+export const saveAssessmentAnswer = async (id: number,
+    answerInput: AnswerInput, options?: RequestInit): Promise<AnswerSaved> => {
+
+  return customFetch<AnswerSaved>(getSaveAssessmentAnswerUrl(id),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      answerInput,)
+  }
+);}
+
+
+
+
+export const getSaveAssessmentAnswerMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveAssessmentAnswer>>, TError,{id: number;data: BodyType<AnswerInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof saveAssessmentAnswer>>, TError,{id: number;data: BodyType<AnswerInput>}, TContext> => {
+
+const mutationKey = ['saveAssessmentAnswer'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof saveAssessmentAnswer>>, {id: number;data: BodyType<AnswerInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  saveAssessmentAnswer(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SaveAssessmentAnswerMutationResult = NonNullable<Awaited<ReturnType<typeof saveAssessmentAnswer>>>
+    export type SaveAssessmentAnswerMutationBody = BodyType<AnswerInput>
+    export type SaveAssessmentAnswerMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Save (or update) a single assessment answer with keystroke trace
+ */
+export const useSaveAssessmentAnswer = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveAssessmentAnswer>>, TError,{id: number;data: BodyType<AnswerInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof saveAssessmentAnswer>>,
+        TError,
+        {id: number;data: BodyType<AnswerInput>},
+        TContext
+      > => {
+      return useMutation(getSaveAssessmentAnswerMutationOptions(options));
+    }
+
+export const getSubmitAssessmentUrl = (id: number,) => {
+
+
+
+
+  return `/api/assessments/instances/${id}/submit`
+}
+
+/**
+ * @summary Submit an assessment for scoring, per-domain feedback, and growth vs baseline
+ */
+export const submitAssessment = async (id: number, options?: RequestInit): Promise<AssessmentResult> => {
+
+  return customFetch<AssessmentResult>(getSubmitAssessmentUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getSubmitAssessmentMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof submitAssessment>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof submitAssessment>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['submitAssessment'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof submitAssessment>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  submitAssessment(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SubmitAssessmentMutationResult = NonNullable<Awaited<ReturnType<typeof submitAssessment>>>
+
+    export type SubmitAssessmentMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Submit an assessment for scoring, per-domain feedback, and growth vs baseline
+ */
+export const useSubmitAssessment = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof submitAssessment>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof submitAssessment>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getSubmitAssessmentMutationOptions(options));
+    }
+
+export const getGetAssessmentResultUrl = (id: number,) => {
+
+
+
+
+  return `/api/assessments/instances/${id}/result`
+}
+
+/**
+ * @summary Get the graded result (per-domain feedback + growth) of a submitted assessment
+ */
+export const getAssessmentResult = async (id: number, options?: RequestInit): Promise<AssessmentResult> => {
+
+  return customFetch<AssessmentResult>(getGetAssessmentResultUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAssessmentResultQueryKey = (id: number,) => {
+    return [
+    `/api/assessments/instances/${id}/result`
+    ] as const;
+    }
+
+
+export const getGetAssessmentResultQueryOptions = <TData = Awaited<ReturnType<typeof getAssessmentResult>>, TError = ErrorType<unknown>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAssessmentResult>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAssessmentResultQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAssessmentResult>>> = ({ signal }) => getAssessmentResult(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(id), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAssessmentResult>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAssessmentResultQueryResult = NonNullable<Awaited<ReturnType<typeof getAssessmentResult>>>
+export type GetAssessmentResultQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get the graded result (per-domain feedback + growth) of a submitted assessment
+ */
+
+export function useGetAssessmentResult<TData = Awaited<ReturnType<typeof getAssessmentResult>>, TError = ErrorType<unknown>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAssessmentResult>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAssessmentResultQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getListLectureCustomVersionsUrl = (lectureId: number,) => {
+
+
+
+
+  return `/api/course/lectures/${lectureId}/custom`
+}
+
+/**
+ * @summary List student-authored alternate versions of a lecture
+ */
+export const listLectureCustomVersions = async (lectureId: number, options?: RequestInit): Promise<LectureCustomVersion[]> => {
+
+  return customFetch<LectureCustomVersion[]>(getListLectureCustomVersionsUrl(lectureId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListLectureCustomVersionsQueryKey = (lectureId: number,) => {
+    return [
+    `/api/course/lectures/${lectureId}/custom`
+    ] as const;
+    }
+
+
+export const getListLectureCustomVersionsQueryOptions = <TData = Awaited<ReturnType<typeof listLectureCustomVersions>>, TError = ErrorType<unknown>>(lectureId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listLectureCustomVersions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListLectureCustomVersionsQueryKey(lectureId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listLectureCustomVersions>>> = ({ signal }) => listLectureCustomVersions(lectureId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(lectureId), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listLectureCustomVersions>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListLectureCustomVersionsQueryResult = NonNullable<Awaited<ReturnType<typeof listLectureCustomVersions>>>
+export type ListLectureCustomVersionsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List student-authored alternate versions of a lecture
+ */
+
+export function useListLectureCustomVersions<TData = Awaited<ReturnType<typeof listLectureCustomVersions>>, TError = ErrorType<unknown>>(
+ lectureId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listLectureCustomVersions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListLectureCustomVersionsQueryOptions(lectureId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getCreateLectureCustomVersionUrl = (lectureId: number,) => {
+
+
+
+
+  return `/api/course/lectures/${lectureId}/custom`
+}
+
+/**
+ * @summary Generate a personalized alternate version of a lecture section from custom instructions
+ */
+export const createLectureCustomVersion = async (lectureId: number,
+    createLectureCustomInput: CreateLectureCustomInput, options?: RequestInit): Promise<LectureCustomVersion> => {
+
+  return customFetch<LectureCustomVersion>(getCreateLectureCustomVersionUrl(lectureId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      createLectureCustomInput,)
+  }
+);}
+
+
+
+
+export const getCreateLectureCustomVersionMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createLectureCustomVersion>>, TError,{lectureId: number;data: BodyType<CreateLectureCustomInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createLectureCustomVersion>>, TError,{lectureId: number;data: BodyType<CreateLectureCustomInput>}, TContext> => {
+
+const mutationKey = ['createLectureCustomVersion'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createLectureCustomVersion>>, {lectureId: number;data: BodyType<CreateLectureCustomInput>}> = (props) => {
+          const {lectureId,data} = props ?? {};
+
+          return  createLectureCustomVersion(lectureId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateLectureCustomVersionMutationResult = NonNullable<Awaited<ReturnType<typeof createLectureCustomVersion>>>
+    export type CreateLectureCustomVersionMutationBody = BodyType<CreateLectureCustomInput>
+    export type CreateLectureCustomVersionMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Generate a personalized alternate version of a lecture section from custom instructions
+ */
+export const useCreateLectureCustomVersion = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createLectureCustomVersion>>, TError,{lectureId: number;data: BodyType<CreateLectureCustomInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createLectureCustomVersion>>,
+        TError,
+        {lectureId: number;data: BodyType<CreateLectureCustomInput>},
+        TContext
+      > => {
+      return useMutation(getCreateLectureCustomVersionMutationOptions(options));
+    }
+
+export const getDeleteLectureCustomVersionUrl = (versionId: number,) => {
+
+
+
+
+  return `/api/course/lectures/custom/${versionId}`
+}
+
+/**
+ * @summary Delete a student-authored lecture version
+ */
+export const deleteLectureCustomVersion = async (versionId: number, options?: RequestInit): Promise<AnswerSaved> => {
+
+  return customFetch<AnswerSaved>(getDeleteLectureCustomVersionUrl(versionId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getDeleteLectureCustomVersionMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteLectureCustomVersion>>, TError,{versionId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteLectureCustomVersion>>, TError,{versionId: number}, TContext> => {
+
+const mutationKey = ['deleteLectureCustomVersion'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteLectureCustomVersion>>, {versionId: number}> = (props) => {
+          const {versionId} = props ?? {};
+
+          return  deleteLectureCustomVersion(versionId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteLectureCustomVersionMutationResult = NonNullable<Awaited<ReturnType<typeof deleteLectureCustomVersion>>>
+
+    export type DeleteLectureCustomVersionMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Delete a student-authored lecture version
+ */
+export const useDeleteLectureCustomVersion = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteLectureCustomVersion>>, TError,{versionId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteLectureCustomVersion>>,
+        TError,
+        {versionId: number},
+        TContext
+      > => {
+      return useMutation(getDeleteLectureCustomVersionMutationOptions(options));
+    }
 

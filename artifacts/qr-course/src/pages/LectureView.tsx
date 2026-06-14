@@ -6,9 +6,14 @@ import {
   useStartPracticeSession,
   useNextPracticeProblem,
   useGradePracticeAnswer,
+  useListLectureCustomVersions,
+  useCreateLectureCustomVersion,
+  useDeleteLectureCustomVersion,
+  getListLectureCustomVersionsQueryKey,
   type PracticeProblem,
   type PracticeGrade,
   type KeystrokeTrace,
+  type LectureCustomVersion,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Layout } from "@/components/layout/Layout";
@@ -55,6 +60,9 @@ export default function LectureView() {
 
   const [tab, setTab] = useState<"tutor" | "practice">("tutor");
   const [level, setLevel] = useState<"short" | "medium" | "long">("short");
+  // When set, a student-authored personalized version is shown instead of an
+  // official depth. null means an official short/medium/long is active.
+  const [selectedCustomId, setSelectedCustomId] = useState<number | null>(null);
 
   const qc = useQueryClient();
   const [generatingLevel, setGeneratingLevel] = useState<"medium" | "long" | null>(null);
@@ -69,9 +77,17 @@ export default function LectureView() {
   // generation started on one lecture can't leak its UI state into another.
   useEffect(() => {
     setLevel("short");
+    setSelectedCustomId(null);
     setGeneratingLevel(null);
     setGenerateError(null);
   }, [lectureId]);
+
+  const { data: customVersions } = useListLectureCustomVersions(lectureId, {
+    query: {
+      queryKey: getListLectureCustomVersionsQueryKey(lectureId),
+      enabled: Number.isFinite(lectureId),
+    },
+  });
 
   const availableLevels = useMemo(() => {
     const out: Array<"short" | "medium" | "long"> = ["short"];
@@ -107,6 +123,7 @@ export default function LectureView() {
   }
 
   function onLevelClick(lvl: "short" | "medium" | "long") {
+    setSelectedCustomId(null);
     if (availableLevels.includes(lvl)) {
       setLevel(lvl);
     } else if (lvl === "medium" || lvl === "long") {
@@ -114,8 +131,14 @@ export default function LectureView() {
     }
   }
 
-  const activeBody =
-    level === "long" && lecture?.bodyLong
+  const selectedCustom =
+    selectedCustomId != null
+      ? (customVersions ?? []).find((v) => v.id === selectedCustomId) ?? null
+      : null;
+
+  const activeBody = selectedCustom
+    ? selectedCustom.body
+    : level === "long" && lecture?.bodyLong
       ? lecture.bodyLong
       : level === "medium" && lecture?.bodyMedium
         ? lecture.bodyMedium
@@ -188,6 +211,19 @@ export default function LectureView() {
                   </div>
                 </div>
               </header>
+
+              <PersonalizePanel
+                lectureId={lecture.id}
+                selectedText={selectedText}
+                customVersions={customVersions ?? []}
+                selectedCustomId={selectedCustomId}
+                onSelectCustom={(id) => setSelectedCustomId(id)}
+                onSelectOfficial={() => {
+                  setSelectedCustomId(null);
+                  setLevel("short");
+                }}
+              />
+
               {generateError && (
                 <div className="mb-4 text-sm text-red-800 bg-red-50 border border-red-300 rounded-md px-3 py-2">
                   {generateError}
@@ -706,6 +742,186 @@ function PracticePane({
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+/* ============ Personalize panel (student-authored lecture versions) ============ */
+function PersonalizePanel({
+  lectureId,
+  selectedText,
+  customVersions,
+  selectedCustomId,
+  onSelectCustom,
+  onSelectOfficial,
+}: {
+  lectureId: number;
+  selectedText: string;
+  customVersions: LectureCustomVersion[];
+  selectedCustomId: number | null;
+  onSelectCustom: (id: number) => void;
+  onSelectOfficial: () => void;
+}) {
+  const qc = useQueryClient();
+  const create = useCreateLectureCustomVersion();
+  const del = useDeleteLectureCustomVersion();
+
+  const [open, setOpen] = useState(false);
+  const [instructions, setInstructions] = useState("");
+  const [label, setLabel] = useState("");
+  const [error, setError] = useState<string | null>(null);
+
+  function invalidate() {
+    return qc.invalidateQueries({
+      queryKey: getListLectureCustomVersionsQueryKey(lectureId),
+    });
+  }
+
+  function submit() {
+    const text = instructions.trim();
+    if (!text) return;
+    setError(null);
+    create.mutate(
+      {
+        lectureId,
+        data: {
+          instructions: text,
+          label: label.trim() || undefined,
+          sourceText: selectedText || undefined,
+        },
+      },
+      {
+        onSuccess: async (created) => {
+          setInstructions("");
+          setLabel("");
+          setOpen(false);
+          await invalidate();
+          onSelectCustom(created.id);
+        },
+        onError: (e) => setError((e as Error).message),
+      },
+    );
+  }
+
+  function remove(id: number) {
+    del.mutate(
+      { versionId: id },
+      {
+        onSuccess: async () => {
+          if (selectedCustomId === id) onSelectOfficial();
+          await invalidate();
+        },
+      },
+    );
+  }
+
+  return (
+    <div className="mb-4 flex flex-col gap-2">
+      <div className="flex items-center gap-2 flex-wrap">
+        <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+          Your versions
+        </span>
+        {customVersions.length === 0 && (
+          <span className="text-xs text-muted-foreground italic">
+            none yet — rewrite this lecture in your own words below
+          </span>
+        )}
+        {customVersions.map((v) => {
+          const active = selectedCustomId === v.id;
+          return (
+            <span
+              key={v.id}
+              className={`inline-flex items-center gap-1 rounded-full border pl-3 pr-1 py-0.5 text-xs ${
+                active
+                  ? "bg-primary text-primary-foreground border-primary"
+                  : "bg-background border-border hover:bg-secondary"
+              }`}
+            >
+              <button
+                onClick={() => onSelectCustom(v.id)}
+                title={v.instructions}
+                className="font-medium"
+                data-testid={`button-custom-version-${v.id}`}
+              >
+                {v.label}
+              </button>
+              <button
+                onClick={() => remove(v.id)}
+                disabled={del.isPending}
+                title="Delete this version"
+                className={`rounded-full p-0.5 ${
+                  active ? "hover:bg-primary-foreground/20" : "hover:bg-destructive/20"
+                }`}
+              >
+                <X className="w-3 h-3" />
+              </button>
+            </span>
+          );
+        })}
+        <button
+          onClick={() => setOpen((o) => !o)}
+          className="inline-flex items-center gap-1 rounded-full border border-dashed border-border px-3 py-0.5 text-xs hover:bg-secondary"
+          data-testid="button-personalize"
+        >
+          <Sparkles className="w-3 h-3" />
+          Personalize
+        </button>
+      </div>
+
+      {open && (
+        <div className="rounded-md border border-border bg-card p-3 flex flex-col gap-2">
+          {selectedText ? (
+            <div className="text-xs text-amber-900 bg-amber-50 border border-amber-200 rounded-md p-2">
+              <span className="font-semibold">Rewriting just your highlighted passage.</span>{" "}
+              <span className="italic line-clamp-2">"{selectedText}"</span>
+            </div>
+          ) : (
+            <div className="text-xs text-muted-foreground">
+              Rewriting the full short lecture. Highlight a passage first to rewrite only
+              that section.
+            </div>
+          )}
+          <textarea
+            value={instructions}
+            onChange={(e) => setInstructions(e.target.value)}
+            placeholder="How should it be rewritten? e.g. 'explain it with a basketball example' or 'much simpler, no jargon, step by step'"
+            rows={3}
+            className="w-full bg-secondary border-none rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary resize-y"
+            data-testid="input-personalize-instructions"
+          />
+          <div className="flex items-center gap-2">
+            <input
+              value={label}
+              onChange={(e) => setLabel(e.target.value)}
+              placeholder="Optional label (e.g. 'basketball version')"
+              className="flex-1 bg-secondary border-none rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+              data-testid="input-personalize-label"
+            />
+            <Button
+              size="sm"
+              onClick={submit}
+              disabled={!instructions.trim() || create.isPending}
+              data-testid="button-personalize-generate"
+            >
+              {create.isPending ? "Writing…" : "Generate"}
+            </Button>
+          </div>
+          {error && (
+            <div className="text-xs text-red-800 bg-red-50 border border-red-300 rounded-md px-3 py-2">
+              {error}
+            </div>
+          )}
+        </div>
+      )}
+
+      {selectedCustomId != null && (
+        <button
+          onClick={onSelectOfficial}
+          className="self-start text-xs text-muted-foreground hover:text-foreground underline"
+        >
+          ← back to the official lecture
+        </button>
+      )}
     </div>
   );
 }

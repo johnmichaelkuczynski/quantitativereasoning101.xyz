@@ -24,6 +24,10 @@ tags:
     description: User performance analytics and reports
   - name: practice-assignments
     description: Infinitely generatable practice twins of graded assignments
+  - name: assessments
+    description: Criterion-valid diagnostic assessments (baseline + per-week parallel forms, plus free self-assessment)
+  - name: lecture-personalize
+    description: Student-authored alternate versions of a lecture section
 paths:
   /healthz:
     get:
@@ -533,6 +537,190 @@ paths:
               schema:
                 $ref: "#/components/schemas/PracticeReadiness"
 
+  /assessments:
+    get:
+      operationId: getAssessmentsOverview
+      tags: [assessments]
+      summary: Overview of the 5 graded diagnostic slots (lock + status) plus the free self-assessment summary
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AssessmentsOverview"
+
+  /assessments/{slot}/start:
+    post:
+      operationId: startAssessment
+      tags: [assessments]
+      summary: Start (or resume) a graded diagnostic slot, generating a fresh non-overlapping parallel form
+      parameters:
+        - name: slot
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [baseline, week1, week2, week3, week4]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AssessmentInstance"
+
+  /assessments/self/start:
+    post:
+      operationId: startSelfAssessment
+      tags: [assessments]
+      summary: Start a fresh, ungraded self-assessment (unlimited, full-subject parallel form)
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AssessmentInstance"
+
+  /assessments/instances/{id}:
+    get:
+      operationId: getAssessmentInstance
+      tags: [assessments]
+      summary: Get an assessment instance with its problems
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AssessmentInstance"
+
+  /assessments/instances/{id}/answer:
+    put:
+      operationId: saveAssessmentAnswer
+      tags: [assessments]
+      summary: Save (or update) a single assessment answer with keystroke trace
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AnswerInput"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnswerSaved"
+
+  /assessments/instances/{id}/submit:
+    post:
+      operationId: submitAssessment
+      tags: [assessments]
+      summary: Submit an assessment for scoring, per-domain feedback, and growth vs baseline
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AssessmentResult"
+
+  /assessments/instances/{id}/result:
+    get:
+      operationId: getAssessmentResult
+      tags: [assessments]
+      summary: Get the graded result (per-domain feedback + growth) of a submitted assessment
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AssessmentResult"
+
+  /course/lectures/{lectureId}/custom:
+    get:
+      operationId: listLectureCustomVersions
+      tags: [lecture-personalize]
+      summary: List student-authored alternate versions of a lecture
+      parameters:
+        - name: lectureId
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/LectureCustomVersion"
+    post:
+      operationId: createLectureCustomVersion
+      tags: [lecture-personalize]
+      summary: Generate a personalized alternate version of a lecture section from custom instructions
+      parameters:
+        - name: lectureId
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateLectureCustomInput"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LectureCustomVersion"
+
+  /course/lectures/custom/{versionId}:
+    delete:
+      operationId: deleteLectureCustomVersion
+      tags: [lecture-personalize]
+      summary: Delete a student-authored lecture version
+      parameters:
+        - name: versionId
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnswerSaved"
+
 components:
   schemas:
     HealthStatus:
@@ -823,7 +1011,7 @@ components:
 
     AnalyticsSummary:
       type: object
-      required: [officialAverage, practiceAccuracy, attemptsCount, practiceCount, streakDays]
+      required: [officialAverage, practiceAccuracy, attemptsCount, practiceCount, streakDays, finalGrade, diagnosticsCompleted, diagnosticsTotal, diagnosticsBucketPercent]
       properties:
         officialAverage: { type: number }
         practiceAccuracy: { type: number }
@@ -832,6 +1020,18 @@ components:
         streakDays: { type: integer }
         strongestTopic: { type: ["string", "null"] }
         weakestTopic: { type: ["string", "null"] }
+        finalGrade:
+          type: number
+          description: Weighted course grade = 0.8 * officialAverage + 0.2 * diagnosticsBucketPercent
+        diagnosticsCompleted:
+          type: integer
+          description: Number of the 5 graded diagnostic slots that have been submitted
+        diagnosticsTotal:
+          type: integer
+          description: Total graded diagnostic slots (always 5)
+        diagnosticsBucketPercent:
+          type: number
+          description: Completion-based diagnostics grade bucket = diagnosticsCompleted / diagnosticsTotal * 100
 
     TopicAnalytics:
       type: object
@@ -1016,3 +1216,158 @@ components:
             assignmentsCompleted: { type: integer }
             assignmentsTotal: { type: integer }
             practiceCount: { type: integer }
+
+    AssessmentsOverview:
+      type: object
+      required: [slots, completed, total, bucketPercent, self]
+      properties:
+        slots:
+          type: array
+          items:
+            $ref: "#/components/schemas/AssessmentSlot"
+        completed:
+          type: integer
+          description: Number of the graded slots that have been submitted
+        total:
+          type: integer
+          description: Total graded slots (always 5)
+        bucketPercent:
+          type: number
+          description: completed / total * 100 (the diagnostics grade bucket)
+        self:
+          $ref: "#/components/schemas/AssessmentSelfSummary"
+
+    AssessmentSlot:
+      type: object
+      required: [slot, title, locked, status]
+      properties:
+        slot:
+          type: string
+          enum: [baseline, week1, week2, week3, week4]
+        title: { type: string }
+        locked: { type: boolean }
+        unlockHint: { type: ["string", "null"] }
+        status:
+          type: string
+          enum: [not_started, in_progress, submitted]
+        instanceId: { type: ["integer", "null"] }
+        scorePercent: { type: ["number", "null"] }
+        passed: { type: ["boolean", "null"] }
+
+    AssessmentSelfSummary:
+      type: object
+      required: [attempts]
+      properties:
+        attempts: { type: integer }
+        lastScorePercent: { type: ["number", "null"] }
+        lastInstanceId: { type: ["integer", "null"] }
+
+    AssessmentInstance:
+      type: object
+      required: [id, slot, kind, title, status, problems]
+      properties:
+        id: { type: integer }
+        slot:
+          type: string
+          enum: [baseline, week1, week2, week3, week4, self]
+        kind:
+          type: string
+          enum: [graded, self]
+        title: { type: string }
+        status:
+          type: string
+          enum: [in_progress, submitted]
+        problems:
+          type: array
+          items:
+            $ref: "#/components/schemas/AssessmentProblem"
+
+    AssessmentProblem:
+      type: object
+      required: [id, position, domain, domainTitle, prompt]
+      properties:
+        id: { type: integer }
+        position: { type: integer }
+        domain: { type: string }
+        domainTitle: { type: string }
+        prompt: { type: string }
+        hint: { type: ["string", "null"] }
+        answer: { type: string, default: "" }
+
+    AssessmentResult:
+      type: object
+      required: [id, slot, kind, score, total, percent, passed, perProblem, feedback]
+      properties:
+        id: { type: integer }
+        slot:
+          type: string
+          enum: [baseline, week1, week2, week3, week4, self]
+        kind:
+          type: string
+          enum: [graded, self]
+        score: { type: number }
+        total: { type: number }
+        percent: { type: number }
+        passed: { type: boolean }
+        perProblem:
+          type: array
+          items:
+            $ref: "#/components/schemas/AssessmentProblemResult"
+        feedback:
+          $ref: "#/components/schemas/AssessmentFeedback"
+
+    AssessmentProblemResult:
+      type: object
+      required: [problemId, position, domain, domainTitle, prompt, correct, userAnswer, correctAnswer, explanation]
+      properties:
+        problemId: { type: integer }
+        position: { type: integer }
+        domain: { type: string }
+        domainTitle: { type: string }
+        prompt: { type: string }
+        correct: { type: boolean }
+        userAnswer: { type: string }
+        correctAnswer: { type: string }
+        explanation: { type: string }
+        feedback: { type: ["string", "null"] }
+
+    AssessmentFeedback:
+      type: object
+      required: [overall, perDomain]
+      properties:
+        overall: { type: string }
+        perDomain:
+          type: array
+          items:
+            $ref: "#/components/schemas/AssessmentDomainFeedback"
+        growth: { type: ["string", "null"] }
+
+    AssessmentDomainFeedback:
+      type: object
+      required: [domain, domainTitle, correct, total, comment]
+      properties:
+        domain: { type: string }
+        domainTitle: { type: string }
+        correct: { type: integer }
+        total: { type: integer }
+        comment: { type: string }
+
+    CreateLectureCustomInput:
+      type: object
+      required: [instructions]
+      properties:
+        instructions: { type: string }
+        sourceText: { type: ["string", "null"] }
+        label: { type: ["string", "null"] }
+
+    LectureCustomVersion:
+      type: object
+      required: [id, lectureId, label, instructions, body, createdAt]
+      properties:
+        id: { type: integer }
+        lectureId: { type: integer }
+        label: { type: string }
+        instructions: { type: string }
+        sourceText: { type: ["string", "null"] }
+        body: { type: string }
+        createdAt: { type: string, format: date-time }

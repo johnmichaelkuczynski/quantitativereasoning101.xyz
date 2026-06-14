@@ -6,6 +6,7 @@ import {
   attemptsTable,
   practiceAttemptsTable,
   assignmentsTable,
+  assessmentInstancesTable,
 } from "@workspace/db";
 import {
   GetAnalyticsSummaryResponse,
@@ -16,6 +17,15 @@ import {
 import { chatJson } from "../lib/ai";
 
 const router: IRouter = Router();
+
+// The 5 graded diagnostic slots that count toward the final-grade bucket.
+const GRADED_DIAGNOSTIC_SLOTS = [
+  "baseline",
+  "week1",
+  "week2",
+  "week3",
+  "week4",
+] as const;
 
 type StrengthLabel = "strong" | "solid" | "developing" | "weak" | "untested";
 function labelFor(accuracy: number, attempts: number): StrengthLabel {
@@ -91,6 +101,24 @@ router.get("/analytics/summary", async (_req, res) => {
   const strongest = tested[0]?.topicTitle ?? null;
   const weakest = tested[tested.length - 1]?.topicTitle ?? null;
 
+  // Diagnostics grade bucket: completion-based (pass = submitted) across the 5
+  // graded diagnostic slots. Final grade = 80% official average + 20% diagnostics.
+  const submittedDiagnostics = await db
+    .select({ slot: assessmentInstancesTable.slot })
+    .from(assessmentInstancesTable)
+    .where(eq(assessmentInstancesTable.status, "submitted"));
+  const completedSlots = new Set(
+    submittedDiagnostics
+      .map((d) => d.slot)
+      .filter((s) =>
+        (GRADED_DIAGNOSTIC_SLOTS as readonly string[]).includes(s),
+      ),
+  );
+  const diagnosticsCompleted = completedSlots.size;
+  const diagnosticsTotal = GRADED_DIAGNOSTIC_SLOTS.length;
+  const diagnosticsBucketPercent = (diagnosticsCompleted / diagnosticsTotal) * 100;
+  const finalGrade = 0.8 * officialAverage + 0.2 * diagnosticsBucketPercent;
+
   res.json(
     GetAnalyticsSummaryResponse.parse({
       officialAverage: Number(officialAverage.toFixed(2)),
@@ -100,6 +128,10 @@ router.get("/analytics/summary", async (_req, res) => {
       streakDays,
       strongestTopic: strongest,
       weakestTopic: weakest,
+      finalGrade: Number(finalGrade.toFixed(2)),
+      diagnosticsCompleted,
+      diagnosticsTotal,
+      diagnosticsBucketPercent: Number(diagnosticsBucketPercent.toFixed(2)),
     }),
   );
 });

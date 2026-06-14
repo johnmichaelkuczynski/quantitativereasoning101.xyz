@@ -400,7 +400,11 @@ export const GetAnalyticsSummaryResponse = zod.object({
   "practiceCount": zod.number(),
   "streakDays": zod.number(),
   "strongestTopic": zod.string().nullish(),
-  "weakestTopic": zod.string().nullish()
+  "weakestTopic": zod.string().nullish(),
+  "finalGrade": zod.number().describe('Weighted course grade = 0.8 \* officialAverage + 0.2 \* diagnosticsBucketPercent'),
+  "diagnosticsCompleted": zod.number().describe('Number of the 5 graded diagnostic slots that have been submitted'),
+  "diagnosticsTotal": zod.number().describe('Total graded diagnostic slots (always 5)'),
+  "diagnosticsBucketPercent": zod.number().describe('Completion-based diagnostics grade bucket = diagnosticsCompleted \/ diagnosticsTotal \* 100')
 })
 
 
@@ -648,6 +652,274 @@ export const GetPracticeAssignmentHistoryResponse = zod.object({
   "percent": zod.number().nullable(),
   "submittedAt": zod.coerce.date().nullable()
 }))
+})
+
+
+/**
+ * @summary Overview of the 5 graded diagnostic slots (lock + status) plus the free self-assessment summary
+ */
+export const GetAssessmentsOverviewResponse = zod.object({
+  "slots": zod.array(zod.object({
+  "slot": zod.enum(['baseline', 'week1', 'week2', 'week3', 'week4']),
+  "title": zod.string(),
+  "locked": zod.boolean(),
+  "unlockHint": zod.string().nullish(),
+  "status": zod.enum(['not_started', 'in_progress', 'submitted']),
+  "instanceId": zod.number().nullish(),
+  "scorePercent": zod.number().nullish(),
+  "passed": zod.boolean().nullish()
+})),
+  "completed": zod.number().describe('Number of the graded slots that have been submitted'),
+  "total": zod.number().describe('Total graded slots (always 5)'),
+  "bucketPercent": zod.number().describe('completed \/ total \* 100 (the diagnostics grade bucket)'),
+  "self": zod.object({
+  "attempts": zod.number(),
+  "lastScorePercent": zod.number().nullish(),
+  "lastInstanceId": zod.number().nullish()
+})
+})
+
+
+/**
+ * @summary Start (or resume) a graded diagnostic slot, generating a fresh non-overlapping parallel form
+ */
+export const StartAssessmentParams = zod.object({
+  "slot": zod.enum(['baseline', 'week1', 'week2', 'week3', 'week4'])
+})
+
+export const startAssessmentResponseProblemsItemAnswerDefault = ``;
+
+export const StartAssessmentResponse = zod.object({
+  "id": zod.number(),
+  "slot": zod.enum(['baseline', 'week1', 'week2', 'week3', 'week4', 'self']),
+  "kind": zod.enum(['graded', 'self']),
+  "title": zod.string(),
+  "status": zod.enum(['in_progress', 'submitted']),
+  "problems": zod.array(zod.object({
+  "id": zod.number(),
+  "position": zod.number(),
+  "domain": zod.string(),
+  "domainTitle": zod.string(),
+  "prompt": zod.string(),
+  "hint": zod.string().nullish(),
+  "answer": zod.string().default(startAssessmentResponseProblemsItemAnswerDefault)
+}))
+})
+
+
+/**
+ * @summary Start a fresh, ungraded self-assessment (unlimited, full-subject parallel form)
+ */
+export const startSelfAssessmentResponseProblemsItemAnswerDefault = ``;
+
+export const StartSelfAssessmentResponse = zod.object({
+  "id": zod.number(),
+  "slot": zod.enum(['baseline', 'week1', 'week2', 'week3', 'week4', 'self']),
+  "kind": zod.enum(['graded', 'self']),
+  "title": zod.string(),
+  "status": zod.enum(['in_progress', 'submitted']),
+  "problems": zod.array(zod.object({
+  "id": zod.number(),
+  "position": zod.number(),
+  "domain": zod.string(),
+  "domainTitle": zod.string(),
+  "prompt": zod.string(),
+  "hint": zod.string().nullish(),
+  "answer": zod.string().default(startSelfAssessmentResponseProblemsItemAnswerDefault)
+}))
+})
+
+
+/**
+ * @summary Get an assessment instance with its problems
+ */
+export const GetAssessmentInstanceParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const getAssessmentInstanceResponseProblemsItemAnswerDefault = ``;
+
+export const GetAssessmentInstanceResponse = zod.object({
+  "id": zod.number(),
+  "slot": zod.enum(['baseline', 'week1', 'week2', 'week3', 'week4', 'self']),
+  "kind": zod.enum(['graded', 'self']),
+  "title": zod.string(),
+  "status": zod.enum(['in_progress', 'submitted']),
+  "problems": zod.array(zod.object({
+  "id": zod.number(),
+  "position": zod.number(),
+  "domain": zod.string(),
+  "domainTitle": zod.string(),
+  "prompt": zod.string(),
+  "hint": zod.string().nullish(),
+  "answer": zod.string().default(getAssessmentInstanceResponseProblemsItemAnswerDefault)
+}))
+})
+
+
+/**
+ * @summary Save (or update) a single assessment answer with keystroke trace
+ */
+export const SaveAssessmentAnswerParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const saveAssessmentAnswerBodyTraceBulkInsertCountDefault = 0;
+export const saveAssessmentAnswerBodyTraceLongestBulkInsertCharsDefault = 0;
+export const saveAssessmentAnswerBodyTraceRewriteSegmentsDefault = 0;
+
+export const SaveAssessmentAnswerBody = zod.object({
+  "problemId": zod.number(),
+  "answer": zod.string(),
+  "trace": zod.object({
+  "keystrokeCount": zod.number(),
+  "eraseCount": zod.number(),
+  "bulkInsertCount": zod.number().default(saveAssessmentAnswerBodyTraceBulkInsertCountDefault),
+  "longestBulkInsertChars": zod.number().default(saveAssessmentAnswerBodyTraceLongestBulkInsertCharsDefault),
+  "rewriteSegments": zod.number().default(saveAssessmentAnswerBodyTraceRewriteSegmentsDefault),
+  "durationMs": zod.number()
+})
+})
+
+export const SaveAssessmentAnswerResponse = zod.object({
+  "ok": zod.boolean()
+})
+
+
+/**
+ * @summary Submit an assessment for scoring, per-domain feedback, and growth vs baseline
+ */
+export const SubmitAssessmentParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const SubmitAssessmentResponse = zod.object({
+  "id": zod.number(),
+  "slot": zod.enum(['baseline', 'week1', 'week2', 'week3', 'week4', 'self']),
+  "kind": zod.enum(['graded', 'self']),
+  "score": zod.number(),
+  "total": zod.number(),
+  "percent": zod.number(),
+  "passed": zod.boolean(),
+  "perProblem": zod.array(zod.object({
+  "problemId": zod.number(),
+  "position": zod.number(),
+  "domain": zod.string(),
+  "domainTitle": zod.string(),
+  "prompt": zod.string(),
+  "correct": zod.boolean(),
+  "userAnswer": zod.string(),
+  "correctAnswer": zod.string(),
+  "explanation": zod.string(),
+  "feedback": zod.string().nullish()
+})),
+  "feedback": zod.object({
+  "overall": zod.string(),
+  "perDomain": zod.array(zod.object({
+  "domain": zod.string(),
+  "domainTitle": zod.string(),
+  "correct": zod.number(),
+  "total": zod.number(),
+  "comment": zod.string()
+})),
+  "growth": zod.string().nullish()
+})
+})
+
+
+/**
+ * @summary Get the graded result (per-domain feedback + growth) of a submitted assessment
+ */
+export const GetAssessmentResultParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GetAssessmentResultResponse = zod.object({
+  "id": zod.number(),
+  "slot": zod.enum(['baseline', 'week1', 'week2', 'week3', 'week4', 'self']),
+  "kind": zod.enum(['graded', 'self']),
+  "score": zod.number(),
+  "total": zod.number(),
+  "percent": zod.number(),
+  "passed": zod.boolean(),
+  "perProblem": zod.array(zod.object({
+  "problemId": zod.number(),
+  "position": zod.number(),
+  "domain": zod.string(),
+  "domainTitle": zod.string(),
+  "prompt": zod.string(),
+  "correct": zod.boolean(),
+  "userAnswer": zod.string(),
+  "correctAnswer": zod.string(),
+  "explanation": zod.string(),
+  "feedback": zod.string().nullish()
+})),
+  "feedback": zod.object({
+  "overall": zod.string(),
+  "perDomain": zod.array(zod.object({
+  "domain": zod.string(),
+  "domainTitle": zod.string(),
+  "correct": zod.number(),
+  "total": zod.number(),
+  "comment": zod.string()
+})),
+  "growth": zod.string().nullish()
+})
+})
+
+
+/**
+ * @summary List student-authored alternate versions of a lecture
+ */
+export const ListLectureCustomVersionsParams = zod.object({
+  "lectureId": zod.coerce.number()
+})
+
+export const ListLectureCustomVersionsResponseItem = zod.object({
+  "id": zod.number(),
+  "lectureId": zod.number(),
+  "label": zod.string(),
+  "instructions": zod.string(),
+  "sourceText": zod.string().nullish(),
+  "body": zod.string(),
+  "createdAt": zod.coerce.date()
+})
+export const ListLectureCustomVersionsResponse = zod.array(ListLectureCustomVersionsResponseItem)
+
+
+/**
+ * @summary Generate a personalized alternate version of a lecture section from custom instructions
+ */
+export const CreateLectureCustomVersionParams = zod.object({
+  "lectureId": zod.coerce.number()
+})
+
+export const CreateLectureCustomVersionBody = zod.object({
+  "instructions": zod.string(),
+  "sourceText": zod.string().nullish(),
+  "label": zod.string().nullish()
+})
+
+export const CreateLectureCustomVersionResponse = zod.object({
+  "id": zod.number(),
+  "lectureId": zod.number(),
+  "label": zod.string(),
+  "instructions": zod.string(),
+  "sourceText": zod.string().nullish(),
+  "body": zod.string(),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Delete a student-authored lecture version
+ */
+export const DeleteLectureCustomVersionParams = zod.object({
+  "versionId": zod.coerce.number()
+})
+
+export const DeleteLectureCustomVersionResponse = zod.object({
+  "ok": zod.boolean()
 })
 
 

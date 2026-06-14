@@ -183,6 +183,61 @@ export const practiceFeedbackMessagesTable = pgTable("practice_feedback_messages
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+// ---- Diagnostic assessments (criterion-valid, full-subject parallel forms) ----
+// Five graded slots (baseline + end of each of the 4 weeks) plus an unlimited
+// free self-assessment. Every administration is a parallel form of the SAME
+// fixed blueprint, so pre->post growth is measurable on one yardstick. The
+// MEASURED score drives feedback/growth; the GRADE contribution is pass/fail by
+// completion (submitting = pass). feedback is { overall, perDomain[], growth }.
+export const assessmentInstancesTable = pgTable("assessment_instances", {
+  id: serial("id").primaryKey(),
+  slot: text("slot").notNull(), // baseline | week1 | week2 | week3 | week4 | self
+  kind: text("kind").notNull(), // graded | self
+  title: text("title").notNull(),
+  status: text("status").notNull().default("in_progress"), // in_progress | submitted
+  scorePercent: doublePrecision("score_percent"),
+  passed: boolean("passed"),
+  feedback: jsonb("feedback"), // { overall, perDomain[], growth }
+  startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
+  submittedAt: timestamp("submitted_at", { withTimezone: true }),
+});
+
+export const assessmentProblemsTable = pgTable("assessment_problems", {
+  id: serial("id").primaryKey(),
+  instanceId: integer("instance_id")
+    .notNull()
+    .references(() => assessmentInstancesTable.id, { onDelete: "cascade" }),
+  domain: text("domain").notNull(), // blueprint domain key
+  domainTitle: text("domain_title").notNull(),
+  position: integer("position").notNull(),
+  prompt: text("prompt").notNull(),
+  correctAnswer: text("correct_answer").notNull(),
+  explanation: text("explanation").notNull(),
+  hint: text("hint"),
+  answer: text("answer").notNull().default(""),
+  correct: boolean("correct"),
+  feedback: text("feedback"),
+  keystrokeCount: integer("keystroke_count").notNull().default(0),
+  eraseCount: integer("erase_count").notNull().default(0),
+  durationMs: integer("duration_ms").notNull().default(0),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// Student-authored alternate versions of a lecture section, generated on demand
+// from custom instructions. They stand ALONGSIDE the official short/medium/long
+// bodies (never replace them) and are deletable at will.
+export const lectureCustomVersionsTable = pgTable("lecture_custom_versions", {
+  id: serial("id").primaryKey(),
+  lectureId: integer("lecture_id")
+    .notNull()
+    .references(() => lecturesTable.id, { onDelete: "cascade" }),
+  label: text("label").notNull(),
+  instructions: text("instructions").notNull(),
+  sourceText: text("source_text"),
+  body: text("body").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 // Evolving per-topic mastery profile. Updated by every graded submit, topic
 // drill, and practice-assignment submit. emaAccuracy is an exponential moving
 // average (recent performance weighted more) so the profile tracks growth.

@@ -6,6 +6,7 @@ import NotFound from "@/pages/not-found";
 
 import Dashboard from "@/pages/Dashboard";
 import Assignments from "@/pages/Assignments";
+import Assessments from "@/pages/Assessments";
 import Analytics from "@/pages/Analytics";
 import WeekView from "@/pages/WeekView";
 import LectureView from "@/pages/LectureView";
@@ -22,6 +23,7 @@ function Router() {
       <Route path="/" component={Dashboard} />
       <Route path="/assignments" component={Assignments} />
       <Route path="/assignments/:id" component={AssignmentRunner} />
+      <Route path="/assessments" component={Assessments} />
       <Route path="/practice-assignment/:sourceId" component={PracticeAssignment} />
       <Route path="/analytics" component={Analytics} />
       <Route path="/diagnostics" component={Diagnostics} />

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
-import { LayoutDashboard, PenTool, BarChart3, Activity, RotateCcw, Sparkles } from "lucide-react";
+import { LayoutDashboard, PenTool, BarChart3, Activity, RotateCcw, Sparkles, ClipboardCheck } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 
 export function Sidebar() {
@@ -9,6 +9,7 @@ export function Sidebar() {
   const navItems = [
     { href: "/", label: "Dashboard", icon: LayoutDashboard },
     { href: "/assignments", label: "Assignments", icon: PenTool },
+    { href: "/assessments", label: "Assessments", icon: ClipboardCheck },
     { href: "/analytics", label: "Analytics", icon: BarChart3 },
   ];
 

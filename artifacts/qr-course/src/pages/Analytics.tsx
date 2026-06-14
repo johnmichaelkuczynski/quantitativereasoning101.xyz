@@ -69,6 +69,49 @@ export default function Analytics() {
           </Card>
         )}
 
+        <Card className="border-primary/30 bg-primary/5">
+          <CardContent className="p-6 flex items-center justify-between flex-wrap gap-6">
+            <div>
+              <div className="text-xs uppercase tracking-wider text-muted-foreground font-semibold mb-1">
+                Final grade
+              </div>
+              {isLoadingSummary ? (
+                <Skeleton className="h-10 w-24" />
+              ) : (
+                <div className="text-4xl font-serif font-bold text-primary">
+                  {summary?.finalGrade != null ? `${summary.finalGrade}%` : "-"}
+                </div>
+              )}
+              <div className="text-xs text-muted-foreground mt-1">
+                80% graded coursework + 20% diagnostics completion
+              </div>
+            </div>
+            <div className="flex gap-8">
+              <div className="text-center">
+                <div className="text-xs uppercase tracking-wider text-muted-foreground font-semibold mb-1">
+                  Coursework (80%)
+                </div>
+                <div className="text-2xl font-serif font-bold text-foreground">
+                  {summary?.officialAverage != null ? `${summary.officialAverage}%` : "-"}
+                </div>
+              </div>
+              <div className="text-center">
+                <div className="text-xs uppercase tracking-wider text-muted-foreground font-semibold mb-1">
+                  Diagnostics (20%)
+                </div>
+                <div className="text-2xl font-serif font-bold text-foreground">
+                  {summary?.diagnosticsCompleted ?? 0}/{summary?.diagnosticsTotal ?? 5}
+                </div>
+                <div className="text-xs text-muted-foreground mt-0.5">
+                  {summary?.diagnosticsBucketPercent != null
+                    ? `${Math.round(summary.diagnosticsBucketPercent)}% bucket`
+                    : ""}
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
           <StatCard title="Course Average" value={summary?.officialAverage ? `${summary.officialAverage}%` : '-'} loading={isLoadingSummary} />
           <StatCard title="Practice Accuracy" value={summary?.practiceAccuracy ? `${summary.practiceAccuracy}%` : '-'} loading={isLoadingSummary} />
