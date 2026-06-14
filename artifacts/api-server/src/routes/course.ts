@@ -217,6 +217,28 @@ router.post(
     }
     const { instructions, sourceText, label } = parsed.data;
 
+    // Server-side length caps so API callers can't bypass the client limits and
+    // request an unbounded rewrite. Instructions are short; the source passage is
+    // capped to roughly a lecture section.
+    const MAX_INSTRUCTIONS = 1000;
+    const MAX_SOURCE_TEXT = 8000;
+    if (instructions.trim().length === 0) {
+      res.status(400).json({ error: "instructions are required" });
+      return;
+    }
+    if (instructions.length > MAX_INSTRUCTIONS) {
+      res
+        .status(400)
+        .json({ error: `instructions must be ${MAX_INSTRUCTIONS} characters or fewer` });
+      return;
+    }
+    if (sourceText && sourceText.length > MAX_SOURCE_TEXT) {
+      res
+        .status(400)
+        .json({ error: `selected passage must be ${MAX_SOURCE_TEXT} characters or fewer` });
+      return;
+    }
+
     const [lecture] = await db
       .select()
       .from(lecturesTable)
@@ -226,8 +248,10 @@ router.post(
       return;
     }
 
-    // Base the rewrite on the selected section if provided, else the whole short body.
-    const base = sourceText && sourceText.trim().length > 0 ? sourceText : lecture.body;
+    // Base the rewrite on the selected section if provided, else the whole short
+    // body. Cap the base so a huge official body can't drive an unbounded rewrite.
+    const rawBase = sourceText && sourceText.trim().length > 0 ? sourceText : lecture.body;
+    const base = rawBase.slice(0, MAX_SOURCE_TEXT);
 
     const sys =
       "You are a college quantitative-reasoning lecturer rewriting a passage of a lecture to fit a student's personal request. RULES, no exceptions:\n" +
