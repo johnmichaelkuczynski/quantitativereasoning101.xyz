@@ -57,6 +57,7 @@ function slotWeek(slot: GradedSlot): number | null {
  * submitted attempt ("end of the week"). Baseline is always available.
  */
 async function computeLock(
+  userId: string,
   slot: GradedSlot,
 ): Promise<{ locked: boolean; unlockHint: string | null }> {
   const week = slotWeek(slot);
@@ -78,6 +79,7 @@ async function computeLock(
       .from(attemptsTable)
       .where(
         and(
+          eq(attemptsTable.userId, userId),
           eq(attemptsTable.assignmentId, a.id),
           eq(attemptsTable.status, "submitted"),
         ),
@@ -93,24 +95,34 @@ async function computeLock(
 }
 
 /** Latest instance for a slot (graded slots have at most one meaningful one). */
-async function latestInstance(slot: string) {
+async function latestInstance(userId: string, slot: string) {
   const [row] = await db
     .select()
     .from(assessmentInstancesTable)
-    .where(eq(assessmentInstancesTable.slot, slot))
+    .where(
+      and(
+        eq(assessmentInstancesTable.userId, userId),
+        eq(assessmentInstancesTable.slot, slot),
+      ),
+    )
     .orderBy(desc(assessmentInstancesTable.id))
     .limit(1);
   return row ?? null;
 }
 
 /** Build the de-duplication context: every prompt ever shown anywhere. */
-async function buildExclusion(): Promise<{
+async function buildExclusion(userId: string): Promise<{
   excludeNorm: Set<string>;
   excludeList: string[];
 }> {
   const priorAssessment = await db
     .select({ prompt: assessmentProblemsTable.prompt })
     .from(assessmentProblemsTable)
+    .innerJoin(
+      assessmentInstancesTable,
+      eq(assessmentProblemsTable.instanceId, assessmentInstancesTable.id),
+    )
+    .where(eq(assessmentInstancesTable.userId, userId))
     .orderBy(desc(assessmentProblemsTable.id));
   const gradedProblems = await db
     .select({ prompt: problemsTable.prompt })
@@ -128,16 +140,23 @@ async function buildExclusion(): Promise<{
 }
 
 async function createInstance(opts: {
+  userId: string;
   slot: string;
   kind: "graded" | "self";
   title: string;
 }) {
-  const { excludeNorm, excludeList } = await buildExclusion();
+  const { excludeNorm, excludeList } = await buildExclusion(opts.userId);
   const items = await generateAssessmentForm(excludeNorm, excludeList);
 
   const [instance] = await db
     .insert(assessmentInstancesTable)
-    .values({ slot: opts.slot, kind: opts.kind, title: opts.title, status: "in_progress" })
+    .values({
+      userId: opts.userId,
+      slot: opts.slot,
+      kind: opts.kind,
+      title: opts.title,
+      status: "in_progress",
+    })
     .returning();
   if (!instance) throw new Error("failed to create assessment instance");
 
@@ -156,11 +175,16 @@ async function createInstance(opts: {
   return instance;
 }
 
-async function loadInstancePlayable(instanceId: number) {
+async function loadInstancePlayable(userId: string, instanceId: number) {
   const [instance] = await db
     .select()
     .from(assessmentInstancesTable)
-    .where(eq(assessmentInstancesTable.id, instanceId));
+    .where(
+      and(
+        eq(assessmentInstancesTable.id, instanceId),
+        eq(assessmentInstancesTable.userId, userId),
+      ),
+    );
   if (!instance) return null;
   const problems = await db
     .select()
@@ -186,12 +210,13 @@ async function loadInstancePlayable(instanceId: number) {
 }
 
 // ---------- Overview ----------
-router.get("/assessments", async (_req, res) => {
+router.get("/assessments", async (req, res) => {
+  const userId = req.userId!;
   const slots = [];
   let completed = 0;
   for (const slot of GRADED_SLOTS) {
-    const { locked, unlockHint } = await computeLock(slot);
-    const instance = await latestInstance(slot);
+    const { locked, unlockHint } = await computeLock(userId, slot);
+    const instance = await latestInstance(userId, slot);
     let status: "not_started" | "in_progress" | "submitted" = "not_started";
     if (instance) {
       status = instance.status === "submitted" ? "submitted" : "in_progress";
@@ -212,7 +237,12 @@ router.get("/assessments", async (_req, res) => {
   const selfInstances = await db
     .select()
     .from(assessmentInstancesTable)
-    .where(eq(assessmentInstancesTable.slot, "self"))
+    .where(
+      and(
+        eq(assessmentInstancesTable.userId, userId),
+        eq(assessmentInstancesTable.slot, "self"),
+      ),
+    )
     .orderBy(desc(assessmentInstancesTable.id));
   const selfSubmitted = selfInstances.filter((i) => i.status === "submitted");
   const lastSelf = selfSubmitted[0] ?? null;
@@ -235,17 +265,20 @@ router.get("/assessments", async (_req, res) => {
 // ---------- Start a fresh self-assessment ----------
 // NOTE: must be registered BEFORE "/assessments/:slot/start" so that the literal
 // "self" path is not captured by the :slot param and rejected as an invalid slot.
-router.post("/assessments/self/start", async (_req, res): Promise<void> => {
+router.post("/assessments/self/start", async (req, res): Promise<void> => {
+  const userId = req.userId!;
   const instance = await createInstance({
+    userId,
     slot: "self",
     kind: "self",
     title: SLOT_TITLE.self!,
   });
-  const playable = await loadInstancePlayable(instance.id);
+  const playable = await loadInstancePlayable(userId, instance.id);
   res.json(StartSelfAssessmentResponse.parse(playable));
 });
 
 router.post("/assessments/:slot/start", async (req, res): Promise<void> => {
+  const userId = req.userId!;
   const parsed = StartAssessmentParams.safeParse({ slot: req.params.slot });
   if (!parsed.success) {
     res.status(400).json({ error: "invalid slot" });
@@ -253,16 +286,16 @@ router.post("/assessments/:slot/start", async (req, res): Promise<void> => {
   }
   const slot = parsed.data.slot as GradedSlot;
 
-  const { locked, unlockHint } = await computeLock(slot);
+  const { locked, unlockHint } = await computeLock(userId, slot);
   if (locked) {
     res.status(403).json({ error: unlockHint ?? "diagnostic is locked" });
     return;
   }
 
   // Resume an in-progress instance; refuse to re-take a completed one.
-  const existing = await latestInstance(slot);
+  const existing = await latestInstance(userId, slot);
   if (existing && existing.status === "in_progress") {
-    const playable = await loadInstancePlayable(existing.id);
+    const playable = await loadInstancePlayable(userId, existing.id);
     res.json(StartAssessmentResponse.parse(playable));
     return;
   }
@@ -272,22 +305,24 @@ router.post("/assessments/:slot/start", async (req, res): Promise<void> => {
   }
 
   const instance = await createInstance({
+    userId,
     slot,
     kind: "graded",
     title: SLOT_TITLE[slot]!,
   });
-  const playable = await loadInstancePlayable(instance.id);
+  const playable = await loadInstancePlayable(userId, instance.id);
   res.json(StartAssessmentResponse.parse(playable));
 });
 
 // ---------- Get an instance ----------
 router.get("/assessments/instances/:id", async (req, res): Promise<void> => {
+  const userId = req.userId!;
   const id = parseIdParam(req.params.id);
   if (!Number.isFinite(id)) {
     res.status(400).json({ error: "invalid id" });
     return;
   }
-  const playable = await loadInstancePlayable(id);
+  const playable = await loadInstancePlayable(userId, id);
   if (!playable) {
     res.status(404).json({ error: "assessment not found" });
     return;
@@ -297,6 +332,7 @@ router.get("/assessments/instances/:id", async (req, res): Promise<void> => {
 
 // ---------- Save an answer ----------
 router.put("/assessments/instances/:id/answer", async (req, res): Promise<void> => {
+  const userId = req.userId!;
   const id = parseIdParam(req.params.id);
   if (!Number.isFinite(id)) {
     res.status(400).json({ error: "invalid id" });
@@ -312,7 +348,12 @@ router.put("/assessments/instances/:id/answer", async (req, res): Promise<void> 
   const [instance] = await db
     .select()
     .from(assessmentInstancesTable)
-    .where(eq(assessmentInstancesTable.id, id));
+    .where(
+      and(
+        eq(assessmentInstancesTable.id, id),
+        eq(assessmentInstancesTable.userId, userId),
+      ),
+    );
   if (!instance) {
     res.status(404).json({ error: "assessment not found" });
     return;
@@ -437,6 +478,7 @@ function fallbackOverall(percent: number, domainResults: DomainResult[]): string
 
 // ---------- Submit ----------
 router.post("/assessments/instances/:id/submit", async (req, res): Promise<void> => {
+  const userId = req.userId!;
   const id = parseIdParam(req.params.id);
   if (!Number.isFinite(id)) {
     res.status(400).json({ error: "invalid id" });
@@ -445,7 +487,12 @@ router.post("/assessments/instances/:id/submit", async (req, res): Promise<void>
   const [instance] = await db
     .select()
     .from(assessmentInstancesTable)
-    .where(eq(assessmentInstancesTable.id, id));
+    .where(
+      and(
+        eq(assessmentInstancesTable.id, id),
+        eq(assessmentInstancesTable.userId, userId),
+      ),
+    );
   if (!instance) {
     res.status(404).json({ error: "assessment not found" });
     return;
@@ -520,6 +567,7 @@ router.post("/assessments/instances/:id/submit", async (req, res): Promise<void>
       .from(assessmentInstancesTable)
       .where(
         and(
+          eq(assessmentInstancesTable.userId, userId),
           eq(assessmentInstancesTable.slot, "baseline"),
           eq(assessmentInstancesTable.status, "submitted"),
         ),
@@ -545,7 +593,12 @@ router.post("/assessments/instances/:id/submit", async (req, res): Promise<void>
       passed: true, // submitting a diagnostic counts as passing for the grade bucket
       feedback,
     })
-    .where(eq(assessmentInstancesTable.id, id));
+    .where(
+      and(
+        eq(assessmentInstancesTable.id, id),
+        eq(assessmentInstancesTable.userId, userId),
+      ),
+    );
 
   res.json(
     SubmitAssessmentResponse.parse({
@@ -564,6 +617,7 @@ router.post("/assessments/instances/:id/submit", async (req, res): Promise<void>
 
 // ---------- Result ----------
 router.get("/assessments/instances/:id/result", async (req, res): Promise<void> => {
+  const userId = req.userId!;
   const id = parseIdParam(req.params.id);
   if (!Number.isFinite(id)) {
     res.status(400).json({ error: "invalid id" });
@@ -572,7 +626,12 @@ router.get("/assessments/instances/:id/result", async (req, res): Promise<void> 
   const [instance] = await db
     .select()
     .from(assessmentInstancesTable)
-    .where(eq(assessmentInstancesTable.id, id));
+    .where(
+      and(
+        eq(assessmentInstancesTable.id, id),
+        eq(assessmentInstancesTable.userId, userId),
+      ),
+    );
   if (!instance) {
     res.status(404).json({ error: "assessment not found" });
     return;

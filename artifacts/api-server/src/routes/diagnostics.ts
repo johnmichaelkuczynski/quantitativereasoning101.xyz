@@ -1,5 +1,6 @@
 import { Router, type IRouter } from "express";
-import { asc, eq, sql } from "drizzle-orm";
+import { randomUUID } from "node:crypto";
+import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import {
   db,
   topicsTable,
@@ -11,12 +12,88 @@ import {
   practiceSessionsTable,
   practiceProblemsTable,
   practiceAttemptsTable,
+  practiceAssignmentsTable,
+  practiceAssignmentProblemsTable,
+  practiceFeedbackMessagesTable,
   assessmentInstancesTable,
   assessmentProblemsTable,
+  lectureCustomVersionsTable,
+  topicProfileTable,
 } from "@workspace/db";
 import { chatText, chatJson, FAST_MODEL } from "../lib/ai";
 import { detect } from "../lib/detection";
 import { gradeAnswer } from "../lib/grading";
+
+// Delete every USER-DATA row owned by one user, in child->parent dependency
+// order. CHILD tables (no userId column) are gated by their owning parent ROOT
+// row via a userId-scoped subquery. SHARED course content (topics, lectures,
+// assignments, problems) is NEVER touched.
+async function wipeUserData(userId: string): Promise<void> {
+  const ownedSessionIds = db
+    .select({ id: practiceSessionsTable.id })
+    .from(practiceSessionsTable)
+    .where(eq(practiceSessionsTable.userId, userId));
+  await db
+    .delete(practiceAttemptsTable)
+    .where(inArray(practiceAttemptsTable.sessionId, ownedSessionIds));
+  await db
+    .delete(practiceProblemsTable)
+    .where(inArray(practiceProblemsTable.sessionId, ownedSessionIds));
+  await db
+    .delete(practiceSessionsTable)
+    .where(eq(practiceSessionsTable.userId, userId));
+
+  const ownedPracticeAssignmentIds = db
+    .select({ id: practiceAssignmentsTable.id })
+    .from(practiceAssignmentsTable)
+    .where(eq(practiceAssignmentsTable.userId, userId));
+  await db
+    .delete(practiceFeedbackMessagesTable)
+    .where(
+      inArray(
+        practiceFeedbackMessagesTable.practiceAssignmentId,
+        ownedPracticeAssignmentIds,
+      ),
+    );
+  await db
+    .delete(practiceAssignmentProblemsTable)
+    .where(
+      inArray(
+        practiceAssignmentProblemsTable.practiceAssignmentId,
+        ownedPracticeAssignmentIds,
+      ),
+    );
+  await db
+    .delete(practiceAssignmentsTable)
+    .where(eq(practiceAssignmentsTable.userId, userId));
+
+  const ownedInstanceIds = db
+    .select({ id: assessmentInstancesTable.id })
+    .from(assessmentInstancesTable)
+    .where(eq(assessmentInstancesTable.userId, userId));
+  await db
+    .delete(assessmentProblemsTable)
+    .where(inArray(assessmentProblemsTable.instanceId, ownedInstanceIds));
+  await db
+    .delete(assessmentInstancesTable)
+    .where(eq(assessmentInstancesTable.userId, userId));
+
+  const ownedAttemptIds = db
+    .select({ id: attemptsTable.id })
+    .from(attemptsTable)
+    .where(eq(attemptsTable.userId, userId));
+  await db
+    .delete(answersTable)
+    .where(inArray(answersTable.attemptId, ownedAttemptIds));
+  await db.delete(attemptsTable).where(eq(attemptsTable.userId, userId));
+
+  await db
+    .delete(lectureCustomVersionsTable)
+    .where(eq(lectureCustomVersionsTable.userId, userId));
+  await db
+    .delete(topicProfileTable)
+    .where(eq(topicProfileTable.userId, userId));
+}
 
 const router: IRouter = Router();
 
@@ -144,6 +221,11 @@ router.post("/diagnostics/synthetic-run", async (_req, res) => {
   const steps: Step[] = [];
   res.setTimeout(10 * 60 * 1000);
 
+  // The synthetic student writes REAL rows. Run them under a dedicated sentinel
+  // user id so they are isolated from every real user, and so they can be wiped
+  // cleanly at the end via this exact scope.
+  const syntheticUserId = "synthetic:" + randomUUID();
+
   // Course discovery
   let topics: { id: number; title: string; weekNumber: number }[] = [];
   let lectures: { id: number; body: string }[] = [];
@@ -198,18 +280,27 @@ router.post("/diagnostics/synthetic-run", async (_req, res) => {
             .orderBy(asc(problemsTable.position));
           if (problems.length === 0) throw new Error("no problems");
 
-          // Start (or resume) attempt
+          // Start (or resume) attempt (scoped to the synthetic student)
           const [existing] = await db
             .select()
             .from(attemptsTable)
-            .where(eq(attemptsTable.assignmentId, a.id));
+            .where(
+              and(
+                eq(attemptsTable.userId, syntheticUserId),
+                eq(attemptsTable.assignmentId, a.id),
+              ),
+            );
           let attemptId: number;
           if (existing && existing.status === "in_progress") {
             attemptId = existing.id;
           } else {
             const [created] = await db
               .insert(attemptsTable)
-              .values({ assignmentId: a.id, status: "in_progress" })
+              .values({
+                userId: syntheticUserId,
+                assignmentId: a.id,
+                status: "in_progress",
+              })
               .returning();
             if (!created) throw new Error("could not start attempt");
             attemptId = created.id;
@@ -295,6 +386,7 @@ router.post("/diagnostics/synthetic-run", async (_req, res) => {
       const [s] = await db
         .insert(practiceSessionsTable)
         .values({
+          userId: syntheticUserId,
           weekNumber: null,
           topicId: null,
           tutorEnabled: true,
@@ -389,8 +481,24 @@ router.post("/diagnostics/synthetic-run", async (_req, res) => {
       const submitted = await db
         .select()
         .from(attemptsTable)
-        .where(eq(attemptsTable.status, "submitted"));
-      const practice = await db.select().from(practiceAttemptsTable);
+        .where(
+          and(
+            eq(attemptsTable.userId, syntheticUserId),
+            eq(attemptsTable.status, "submitted"),
+          ),
+        );
+      const practice = await db
+        .select()
+        .from(practiceAttemptsTable)
+        .where(
+          inArray(
+            practiceAttemptsTable.sessionId,
+            db
+              .select({ id: practiceSessionsTable.id })
+              .from(practiceSessionsTable)
+              .where(eq(practiceSessionsTable.userId, syntheticUserId)),
+          ),
+        );
       const t = await db.select().from(topicsTable);
       return `${submitted.length} submitted attempts · ${practice.length} practice attempts · ${t.length} topics`;
     }),
@@ -404,6 +512,13 @@ router.post("/diagnostics/synthetic-run", async (_req, res) => {
       );
       if (!out.narrative) throw new Error("no narrative");
       return `narrative ${out.narrative.length} chars · ${out.recommendations.length} recs`;
+    }),
+  );
+
+  steps.push(
+    await run("Cleanup: wipe synthetic student data", async () => {
+      await wipeUserData(syntheticUserId);
+      return `removed all rows for ${syntheticUserId}`;
     }),
   );
 
@@ -497,17 +612,13 @@ router.post("/diagnostics/expand-lectures", async (req, res) => {
   res.json({ ok: failed === 0, level, updated, failed, total: lectures.length });
 });
 
-// ---------- Reset: wipe all student progress, keep course content ----------
-router.post("/diagnostics/reset", async (_req, res) => {
-  // Delete in dependency order. Course content (topics, lectures, assignments,
-  // problems) is preserved; only student progress / generated practice is wiped.
-  await db.delete(practiceAttemptsTable);
-  await db.delete(practiceProblemsTable);
-  await db.delete(practiceSessionsTable);
-  await db.delete(assessmentProblemsTable);
-  await db.delete(assessmentInstancesTable);
-  await db.delete(answersTable);
-  await db.delete(attemptsTable);
+// ---------- Reset: wipe the CALLER'S OWN progress, keep shared content ----------
+router.post("/diagnostics/reset", async (req, res) => {
+  const userId = req.userId!;
+  // Wipe only this user's attempts/practice/assessment/custom-lecture/topic-profile
+  // rows (and their owned children). SHARED course content (topics, lectures,
+  // assignments, problems) is preserved and never touched.
+  await wipeUserData(userId);
   res.json({ ok: true, resetAt: new Date().toISOString() });
 });
 
