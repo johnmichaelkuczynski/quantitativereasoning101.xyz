@@ -9,6 +9,7 @@ import analyticsRouter from "./analytics";
 import practiceAssignmentsRouter from "./practice-assignments";
 import assessmentsRouter from "./assessments";
 import diagnosticsRouter from "./diagnostics";
+import adminRouter from "./admin";
 
 const router: IRouter = Router();
 
@@ -22,5 +23,6 @@ router.use(analyticsRouter);
 router.use(practiceAssignmentsRouter);
 router.use(assessmentsRouter);
 router.use(diagnosticsRouter);
+router.use(adminRouter);
 
 export default router;
