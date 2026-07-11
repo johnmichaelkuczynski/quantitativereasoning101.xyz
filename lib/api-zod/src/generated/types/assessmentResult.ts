@@ -9,6 +9,7 @@ import type { AssessmentFeedback } from './assessmentFeedback';
 import type { AssessmentProblemResult } from './assessmentProblemResult';
 import type { AssessmentResultKind } from './assessmentResultKind';
 import type { AssessmentResultSlot } from './assessmentResultSlot';
+import type { DetectionResult } from './detectionResult';
 
 export interface AssessmentResult {
   id: number;
@@ -20,4 +21,5 @@ export interface AssessmentResult {
   passed: boolean;
   perProblem: AssessmentProblemResult[];
   feedback: AssessmentFeedback;
+  detection: DetectionResult[];
 }

@@ -823,7 +823,15 @@ export const SubmitAssessmentResponse = zod.object({
   "comment": zod.string()
 })),
   "growth": zod.string().nullish()
-})
+}),
+  "detection": zod.array(zod.object({
+  "problemId": zod.number().nullable(),
+  "aiScore": zod.number().describe('0..1 probability the text is AI-generated'),
+  "aiFlagged": zod.boolean(),
+  "diachronicScore": zod.number().describe('0..1 probability the user is rewording AI output (based on keystroke pattern)'),
+  "diachronicFlagged": zod.boolean(),
+  "rationale": zod.string()
+}))
 })
 
 
@@ -864,7 +872,15 @@ export const GetAssessmentResultResponse = zod.object({
   "comment": zod.string()
 })),
   "growth": zod.string().nullish()
-})
+}),
+  "detection": zod.array(zod.object({
+  "problemId": zod.number().nullable(),
+  "aiScore": zod.number().describe('0..1 probability the text is AI-generated'),
+  "aiFlagged": zod.boolean(),
+  "diachronicScore": zod.number().describe('0..1 probability the user is rewording AI output (based on keystroke pattern)'),
+  "diachronicFlagged": zod.boolean(),
+  "rationale": zod.string()
+}))
 })
 
 
