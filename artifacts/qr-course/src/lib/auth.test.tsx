@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { devCallbackUrl, isFramed, launchGoogleLogin } from "@/lib/loginLauncher";
+import { devCallbackUrl, isFramed, launchGoogleLogin } from "@/lib/auth";
 import { SignInScreen } from "@/App";
 
 const AUTH_URL = `${window.location.origin}/api/auth/google`;

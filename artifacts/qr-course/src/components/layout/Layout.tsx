@@ -2,8 +2,7 @@ import React, { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { LayoutDashboard, PenTool, BarChart3, Activity, RotateCcw, Sparkles, ClipboardCheck, LogIn, LogOut, UserCircle, ShieldCheck } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { useAuth } from "@/lib/auth";
-import { useGoogleLogin } from "@/lib/loginLauncher";
+import { useAuth, useGoogleLogin } from "@/lib/auth";
 
 export function Sidebar() {
   const [location] = useLocation();
