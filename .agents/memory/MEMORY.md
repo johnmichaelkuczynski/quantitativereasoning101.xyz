@@ -1,2 +1,3 @@
 - [Practice twin feature](practice-twin.md) — generate/submit/feedback loop for ungraded twins of graded assignments; non-overlap + idempotency rules that must hold.
 - [Neon publish conflict](neon-publish-conflict.md) — publish stalls when external DATABASE_URL coexists with a Replit-managed DB; delete the empty managed DB, never the secret.
+- [Google OAuth behind proxy](google-oauth-proxy.md) — OAuth callback must be /api-prefixed; connect-pg-simple table.sql must be copied into dist; owner forbids Clerk/Replit Auth.
