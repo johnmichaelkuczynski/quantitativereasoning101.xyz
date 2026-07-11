@@ -1,7 +1,61 @@
 import React, { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
-import { LayoutDashboard, PenTool, BarChart3, Activity, RotateCcw, Sparkles, ClipboardCheck, LogIn, LogOut, UserCircle } from "lucide-react";
+import { LayoutDashboard, PenTool, BarChart3, Activity, RotateCcw, Sparkles, ClipboardCheck, LogOut } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
+import { useUser, useClerk } from "@clerk/react";
+
+const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
+
+function UserMenu() {
+  const { user, isLoaded } = useUser();
+  const { signOut } = useClerk();
+
+  if (!isLoaded || !user) return null;
+
+  const name =
+    user.fullName ||
+    user.primaryEmailAddress?.emailAddress ||
+    user.username ||
+    "Student";
+  const email = user.primaryEmailAddress?.emailAddress;
+  const initial = (name || "S").charAt(0).toUpperCase();
+
+  return (
+    <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2 min-w-0">
+        {user.imageUrl ? (
+          <img
+            src={user.imageUrl}
+            alt={name}
+            className="w-8 h-8 rounded-full object-cover"
+            referrerPolicy="no-referrer"
+          />
+        ) : (
+          <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-semibold">
+            {initial}
+          </div>
+        )}
+        <div className="hidden md:flex flex-col leading-tight min-w-0">
+          <span className="text-sm font-medium truncate max-w-[140px]">{name}</span>
+          {email && (
+            <span className="text-xs text-muted-foreground truncate max-w-[140px]">
+              {email}
+            </span>
+          )}
+        </div>
+      </div>
+      <button
+        onClick={() => signOut({ redirectUrl: basePath || "/" })}
+        className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium border border-border hover:bg-secondary"
+        data-testid="button-logout"
+        title="Log out"
+      >
+        <LogOut className="w-4 h-4" />
+        <span className="hidden sm:inline">Log out</span>
+      </button>
+    </div>
+  );
+}
 
 export function Sidebar() {
   const [location] = useLocation();
@@ -49,82 +103,6 @@ export function Sidebar() {
       <div className="p-4 border-t border-border text-xs text-muted-foreground text-center">
         Quantitative Reasoning MVP
       </div>
-    </div>
-  );
-}
-
-type AuthState =
-  | { status: "loading" }
-  | { status: "signedOut" }
-  | { status: "signedIn"; user: { id: number; username: string; email: string | null; displayName: string | null } };
-
-function AuthControls() {
-  const [auth, setAuth] = useState<AuthState>({ status: "loading" });
-
-  useEffect(() => {
-    let cancelled = false;
-    fetch("/api/auth/user", { credentials: "include" })
-      .then((res) => (res.ok ? res.json() : { authenticated: false }))
-      .then((data: { authenticated: boolean; user?: { id: number; username: string; email: string | null; displayName: string | null } | null }) => {
-        if (cancelled) return;
-        if (data.authenticated && data.user) {
-          setAuth({ status: "signedIn", user: data.user });
-        } else {
-          setAuth({ status: "signedOut" });
-        }
-      })
-      .catch(() => {
-        if (!cancelled) setAuth({ status: "signedOut" });
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  async function handleLogout() {
-    try {
-      await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
-    } finally {
-      window.location.href = "/";
-    }
-  }
-
-  if (auth.status === "loading") {
-    return <div className="w-24 h-8" aria-hidden="true" />;
-  }
-
-  if (auth.status === "signedOut") {
-    return (
-      <a
-        href="/api/auth/google"
-        className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium bg-primary text-primary-foreground hover:opacity-90"
-        data-testid="button-login"
-      >
-        <LogIn className="w-4 h-4" />
-        Sign in with Google
-      </a>
-    );
-  }
-
-  const label = auth.user.displayName || auth.user.username || auth.user.email || "Signed in";
-  return (
-    <div className="flex items-center gap-2">
-      <span
-        className="inline-flex items-center gap-1.5 px-2 py-1.5 text-sm text-muted-foreground max-w-48 truncate"
-        title={auth.user.email ?? undefined}
-        data-testid="text-user-name"
-      >
-        <UserCircle className="w-4 h-4 shrink-0" />
-        <span className="truncate">{label}</span>
-      </span>
-      <button
-        onClick={handleLogout}
-        className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium border border-border hover:bg-secondary"
-        data-testid="button-logout"
-      >
-        <LogOut className="w-4 h-4" />
-        Log out
-      </button>
     </div>
   );
 }
@@ -184,10 +162,9 @@ function TopBar() {
   }
 
   return (
-    <div className="sticky top-0 z-10 flex items-center justify-end gap-2 px-6 py-3 border-b border-border bg-background/80 backdrop-blur">
-      <div className="mr-auto">
-        <AuthControls />
-      </div>
+    <div className="sticky top-0 z-10 flex items-center justify-between gap-2 px-6 py-3 border-b border-border bg-background/80 backdrop-blur">
+      <UserMenu />
+      <div className="flex items-center gap-2">
       <button
         onClick={handleExpandLectures}
         disabled={expanding}
@@ -221,6 +198,7 @@ function TopBar() {
           Diagnostic
         </button>
       </Link>
+      </div>
     </div>
   );
 }

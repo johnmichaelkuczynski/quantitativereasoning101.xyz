@@ -1,4 +1,3 @@
-- [Login ripped out](login-ripped-out.md) — user demanded ALL Clerk auth removed (June 2026); app is single-user again; do NOT re-add or "fix" login without an explicit new request.
+- [Multi-user isolation](multi-user-isolation.md) — ROOT tables carry userId (filter every access); CHILD rows owned via parent (gate by parent, never by own id = IDOR); web auth is cookie-only.
 - [Practice twin feature](practice-twin.md) — generate/submit/feedback loop for ungraded twins of graded assignments; non-overlap + idempotency rules that must hold.
 - [Neon publish conflict](neon-publish-conflict.md) — publish stalls when external DATABASE_URL coexists with a Replit-managed DB; delete the empty managed DB, never the secret.
-- [Bundled session store](bundled-session-store.md) — esbuild bundle drops connect-pg-simple's table.sql; missing session table makes OAuth end in auth_failed. Build copies it into dist/.

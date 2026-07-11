@@ -7,6 +7,7 @@ import {
   timestamp,
   jsonb,
   doublePrecision,
+  primaryKey,
 } from "drizzle-orm/pg-core";
 
 export const topicsTable = pgTable("topics", {
@@ -58,6 +59,7 @@ export const problemsTable = pgTable("problems", {
 
 export const attemptsTable = pgTable("attempts", {
   id: serial("id").primaryKey(),
+  userId: text("user_id").notNull(),
   assignmentId: integer("assignment_id")
     .notNull()
     .references(() => assignmentsTable.id, { onDelete: "cascade" }),
@@ -94,6 +96,7 @@ export const answersTable = pgTable("answers", {
 
 export const practiceSessionsTable = pgTable("practice_sessions", {
   id: serial("id").primaryKey(),
+  userId: text("user_id").notNull(),
   weekNumber: integer("week_number"),
   topicId: integer("topic_id"),
   tutorEnabled: boolean("tutor_enabled").notNull().default(false),
@@ -137,6 +140,7 @@ export const practiceAttemptsTable = pgTable("practice_attempts", {
 // generated once and never reused.
 export const practiceAssignmentsTable = pgTable("practice_assignments", {
   id: serial("id").primaryKey(),
+  userId: text("user_id").notNull(),
   sourceAssignmentId: integer("source_assignment_id")
     .notNull()
     .references(() => assignmentsTable.id, { onDelete: "cascade" }),
@@ -191,6 +195,7 @@ export const practiceFeedbackMessagesTable = pgTable("practice_feedback_messages
 // completion (submitting = pass). feedback is { overall, perDomain[], growth }.
 export const assessmentInstancesTable = pgTable("assessment_instances", {
   id: serial("id").primaryKey(),
+  userId: text("user_id").notNull(),
   slot: text("slot").notNull(), // baseline | week1 | week2 | week3 | week4 | self
   kind: text("kind").notNull(), // graded | self
   title: text("title").notNull(),
@@ -219,15 +224,7 @@ export const assessmentProblemsTable = pgTable("assessment_problems", {
   feedback: text("feedback"),
   keystrokeCount: integer("keystroke_count").notNull().default(0),
   eraseCount: integer("erase_count").notNull().default(0),
-  bulkInsertCount: integer("bulk_insert_count").notNull().default(0),
-  longestBulkInsertChars: integer("longest_bulk_insert_chars").notNull().default(0),
-  rewriteSegments: integer("rewrite_segments").notNull().default(0),
   durationMs: integer("duration_ms").notNull().default(0),
-  aiScore: doublePrecision("ai_score"),
-  aiFlagged: boolean("ai_flagged"),
-  diachronicScore: doublePrecision("diachronic_score"),
-  diachronicFlagged: boolean("diachronic_flagged"),
-  detectionRationale: text("detection_rationale"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
@@ -236,6 +233,7 @@ export const assessmentProblemsTable = pgTable("assessment_problems", {
 // bodies (never replace them) and are deletable at will.
 export const lectureCustomVersionsTable = pgTable("lecture_custom_versions", {
   id: serial("id").primaryKey(),
+  userId: text("user_id").notNull(),
   lectureId: integer("lecture_id")
     .notNull()
     .references(() => lecturesTable.id, { onDelete: "cascade" }),
@@ -249,13 +247,18 @@ export const lectureCustomVersionsTable = pgTable("lecture_custom_versions", {
 // Evolving per-topic mastery profile. Updated by every graded submit, topic
 // drill, and practice-assignment submit. emaAccuracy is an exponential moving
 // average (recent performance weighted more) so the profile tracks growth.
-export const topicProfileTable = pgTable("topic_profile", {
-  topicId: integer("topic_id")
-    .primaryKey()
-    .references(() => topicsTable.id, { onDelete: "cascade" }),
-  attempts: integer("attempts").notNull().default(0),
-  correct: integer("correct").notNull().default(0),
-  emaAccuracy: doublePrecision("ema_accuracy").notNull().default(0.5),
-  notes: text("notes"),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-});
+export const topicProfileTable = pgTable(
+  "topic_profile",
+  {
+    userId: text("user_id").notNull(),
+    topicId: integer("topic_id")
+      .notNull()
+      .references(() => topicsTable.id, { onDelete: "cascade" }),
+    attempts: integer("attempts").notNull().default(0),
+    correct: integer("correct").notNull().default(0),
+    emaAccuracy: doublePrecision("ema_accuracy").notNull().default(0.5),
+    notes: text("notes"),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.topicId] })],
+);

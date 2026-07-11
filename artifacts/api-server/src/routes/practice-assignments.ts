@@ -53,6 +53,7 @@ type FocusReport = {
 };
 
 router.post("/practice-assignments/generate", async (req, res): Promise<void> => {
+  const userId = req.userId!;
   const parsed = GeneratePracticeAssignmentBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
@@ -98,12 +99,18 @@ router.post("/practice-assignments/generate", async (req, res): Promise<void> =>
       practiceAssignmentsTable,
       eq(practiceAssignmentProblemsTable.practiceAssignmentId, practiceAssignmentsTable.id),
     )
-    .where(eq(practiceAssignmentsTable.sourceAssignmentId, sourceAssignmentId));
+    .where(
+      and(
+        eq(practiceAssignmentsTable.sourceAssignmentId, sourceAssignmentId),
+        eq(practiceAssignmentsTable.userId, userId),
+      ),
+    );
   const priorPracticePrompts = priorPracticeRows.map((r) => r.prompt);
 
   const [created] = await db
     .insert(practiceAssignmentsTable)
     .values({
+      userId,
       sourceAssignmentId,
       kind: source.kind,
       title: `Practice — ${source.title}`,
@@ -229,6 +236,7 @@ router.post("/practice-assignments/generate", async (req, res): Promise<void> =>
 });
 
 router.get("/practice-assignments/:id", async (req, res): Promise<void> => {
+  const userId = req.userId!;
   const id = parseIdParam(req.params.id);
   if (!Number.isFinite(id)) {
     res.status(400).json({ error: "invalid id" });
@@ -237,7 +245,12 @@ router.get("/practice-assignments/:id", async (req, res): Promise<void> => {
   const [pa] = await db
     .select()
     .from(practiceAssignmentsTable)
-    .where(eq(practiceAssignmentsTable.id, id));
+    .where(
+      and(
+        eq(practiceAssignmentsTable.id, id),
+        eq(practiceAssignmentsTable.userId, userId),
+      ),
+    );
   if (!pa) {
     res.status(404).json({ error: "practice assignment not found" });
     return;
@@ -270,6 +283,7 @@ router.get("/practice-assignments/:id", async (req, res): Promise<void> => {
 });
 
 router.put("/practice-assignments/:id/answer", async (req, res): Promise<void> => {
+  const userId = req.userId!;
   const id = parseIdParam(req.params.id);
   if (!Number.isFinite(id)) {
     res.status(400).json({ error: "invalid id" });
@@ -285,7 +299,12 @@ router.put("/practice-assignments/:id/answer", async (req, res): Promise<void> =
   const [pa] = await db
     .select()
     .from(practiceAssignmentsTable)
-    .where(eq(practiceAssignmentsTable.id, id));
+    .where(
+      and(
+        eq(practiceAssignmentsTable.id, id),
+        eq(practiceAssignmentsTable.userId, userId),
+      ),
+    );
   if (!pa) {
     res.status(404).json({ error: "practice assignment not found" });
     return;
@@ -319,6 +338,7 @@ router.put("/practice-assignments/:id/answer", async (req, res): Promise<void> =
 });
 
 router.post("/practice-assignments/:id/submit", async (req, res): Promise<void> => {
+  const userId = req.userId!;
   const id = parseIdParam(req.params.id);
   if (!Number.isFinite(id)) {
     res.status(400).json({ error: "invalid id" });
@@ -327,7 +347,12 @@ router.post("/practice-assignments/:id/submit", async (req, res): Promise<void> 
   const [pa] = await db
     .select()
     .from(practiceAssignmentsTable)
-    .where(eq(practiceAssignmentsTable.id, id));
+    .where(
+      and(
+        eq(practiceAssignmentsTable.id, id),
+        eq(practiceAssignmentsTable.userId, userId),
+      ),
+    );
   if (!pa) {
     res.status(404).json({ error: "practice assignment not found" });
     return;
@@ -374,7 +399,7 @@ router.post("/practice-assignments/:id/submit", async (req, res): Promise<void> 
       userAnswer,
     });
     if (g.correct) score += 1;
-    await recordTopicOutcome(p.topicId, g.correct);
+    await recordTopicOutcome(userId, p.topicId, g.correct);
     graded.push({
       problemId: p.id,
       position: p.position,
@@ -445,7 +470,7 @@ router.post("/practice-assignments/:id/submit", async (req, res): Promise<void> 
 
   // Surgically precise focus report: cross-reference this attempt's misses with
   // the evolving per-topic mastery profile.
-  const mastery = await getTopicMastery();
+  const mastery = await getTopicMastery(userId);
   const missTopics = new Map<string, { topicId: number; misses: number; total: number }>();
   for (const g of graded) {
     const key = g.topicTitle ?? `Topic ${g.topicId}`;
@@ -521,7 +546,12 @@ router.post("/practice-assignments/:id/submit", async (req, res): Promise<void> 
       scorePercent: percent,
       focusReport,
     })
-    .where(eq(practiceAssignmentsTable.id, id));
+    .where(
+      and(
+        eq(practiceAssignmentsTable.id, id),
+        eq(practiceAssignmentsTable.userId, userId),
+      ),
+    );
 
   res.json(
     SubmitPracticeAssignmentResponse.parse({
@@ -536,6 +566,7 @@ router.post("/practice-assignments/:id/submit", async (req, res): Promise<void> 
 });
 
 router.get("/practice-assignments/:id/result", async (req, res): Promise<void> => {
+  const userId = req.userId!;
   const id = parseIdParam(req.params.id);
   if (!Number.isFinite(id)) {
     res.status(400).json({ error: "invalid id" });
@@ -544,7 +575,12 @@ router.get("/practice-assignments/:id/result", async (req, res): Promise<void> =
   const [pa] = await db
     .select()
     .from(practiceAssignmentsTable)
-    .where(eq(practiceAssignmentsTable.id, id));
+    .where(
+      and(
+        eq(practiceAssignmentsTable.id, id),
+        eq(practiceAssignmentsTable.userId, userId),
+      ),
+    );
   if (!pa || pa.status !== "submitted") {
     res.status(404).json({ error: "no submitted result for this practice assignment" });
     return;
@@ -600,6 +636,7 @@ router.get("/practice-assignments/:id/result", async (req, res): Promise<void> =
 router.post(
   "/practice-assignments/:id/feedback-chat",
   async (req, res): Promise<void> => {
+    const userId = req.userId!;
     const id = parseIdParam(req.params.id);
     if (!Number.isFinite(id)) {
       res.status(400).json({ error: "invalid id" });
@@ -615,7 +652,12 @@ router.post(
     const [pa] = await db
       .select()
       .from(practiceAssignmentsTable)
-      .where(eq(practiceAssignmentsTable.id, id));
+      .where(
+        and(
+          eq(practiceAssignmentsTable.id, id),
+          eq(practiceAssignmentsTable.userId, userId),
+        ),
+      );
     if (!pa) {
       res.status(404).json({ error: "practice assignment not found" });
       return;
@@ -690,9 +732,23 @@ router.post(
 );
 
 router.get("/practice-assignments/:id/messages", async (req, res): Promise<void> => {
+  const userId = req.userId!;
   const id = parseIdParam(req.params.id);
   if (!Number.isFinite(id)) {
     res.status(400).json({ error: "invalid id" });
+    return;
+  }
+  const [pa] = await db
+    .select()
+    .from(practiceAssignmentsTable)
+    .where(
+      and(
+        eq(practiceAssignmentsTable.id, id),
+        eq(practiceAssignmentsTable.userId, userId),
+      ),
+    );
+  if (!pa) {
+    res.status(404).json({ error: "practice assignment not found" });
     return;
   }
   const rows = await db
@@ -716,6 +772,7 @@ router.get("/practice-assignments/:id/messages", async (req, res): Promise<void>
 router.get(
   "/practice-assignments/history/:sourceAssignmentId",
   async (req, res): Promise<void> => {
+    const userId = req.userId!;
     const sourceId = parseIdParam(req.params.sourceAssignmentId);
     if (!Number.isFinite(sourceId)) {
       res.status(400).json({ error: "invalid id" });
@@ -732,6 +789,7 @@ router.get(
         and(
           eq(practiceAssignmentsTable.sourceAssignmentId, sourceId),
           eq(practiceAssignmentsTable.status, "submitted"),
+          eq(practiceAssignmentsTable.userId, userId),
         ),
       )
       .orderBy(desc(practiceAssignmentsTable.id));

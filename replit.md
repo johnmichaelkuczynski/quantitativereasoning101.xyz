@@ -6,7 +6,7 @@
 
 ## 🧩 Overview
 
-QuantReason is a self-paced, single-user web course that delivers a full month of college-freshman Quantitative Reasoning — taught, tutored, drilled, and graded entirely by AI, with built-in academic-integrity enforcement.
+QuantReason is a self-paced web course that delivers a full month of college-freshman Quantitative Reasoning — taught, tutored, drilled, and graded entirely by AI, with built-in academic-integrity enforcement. Each student signs in (Google via Replit-managed Clerk) and gets their own private progress, grades, assessments, practice, and custom lectures, while the curriculum content is shared across everyone.
 
 It compresses the experience of a semester-style QR class into one focused product: read the lecture at the depth you want, ask a tutor scoped to the exact section you're on, drill problems whose difficulty adapts to you in real time, and submit homework, tests, a midterm, and a final that are AI-graded with feedback and screened for AI-generated answers.
 
