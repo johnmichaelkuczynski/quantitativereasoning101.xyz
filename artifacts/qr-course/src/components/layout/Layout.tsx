@@ -1,61 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
-import { LayoutDashboard, PenTool, BarChart3, Activity, RotateCcw, Sparkles, ClipboardCheck, LogOut } from "lucide-react";
+import { LayoutDashboard, PenTool, BarChart3, Activity, RotateCcw, Sparkles, ClipboardCheck } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { useUser, useClerk } from "@clerk/react";
-
-const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
-
-function UserMenu() {
-  const { user, isLoaded } = useUser();
-  const { signOut } = useClerk();
-
-  if (!isLoaded || !user) return null;
-
-  const name =
-    user.fullName ||
-    user.primaryEmailAddress?.emailAddress ||
-    user.username ||
-    "Student";
-  const email = user.primaryEmailAddress?.emailAddress;
-  const initial = (name || "S").charAt(0).toUpperCase();
-
-  return (
-    <div className="flex items-center gap-3">
-      <div className="flex items-center gap-2 min-w-0">
-        {user.imageUrl ? (
-          <img
-            src={user.imageUrl}
-            alt={name}
-            className="w-8 h-8 rounded-full object-cover"
-            referrerPolicy="no-referrer"
-          />
-        ) : (
-          <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-semibold">
-            {initial}
-          </div>
-        )}
-        <div className="hidden md:flex flex-col leading-tight min-w-0">
-          <span className="text-sm font-medium truncate max-w-[140px]">{name}</span>
-          {email && (
-            <span className="text-xs text-muted-foreground truncate max-w-[140px]">
-              {email}
-            </span>
-          )}
-        </div>
-      </div>
-      <button
-        onClick={() => signOut({ redirectUrl: basePath || "/" })}
-        className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium border border-border hover:bg-secondary"
-        data-testid="button-logout"
-        title="Log out"
-      >
-        <LogOut className="w-4 h-4" />
-        <span className="hidden sm:inline">Log out</span>
-      </button>
-    </div>
-  );
-}
 
 export function Sidebar() {
   const [location] = useLocation();
@@ -162,9 +108,7 @@ function TopBar() {
   }
 
   return (
-    <div className="sticky top-0 z-10 flex items-center justify-between gap-2 px-6 py-3 border-b border-border bg-background/80 backdrop-blur">
-      <UserMenu />
-      <div className="flex items-center gap-2">
+    <div className="sticky top-0 z-10 flex items-center justify-end gap-2 px-6 py-3 border-b border-border bg-background/80 backdrop-blur">
       <button
         onClick={handleExpandLectures}
         disabled={expanding}
@@ -198,7 +142,6 @@ function TopBar() {
           Diagnostic
         </button>
       </Link>
-      </div>
     </div>
   );
 }

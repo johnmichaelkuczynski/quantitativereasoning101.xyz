@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, and, asc, desc, sql } from "drizzle-orm";
+import { eq, asc, desc, sql } from "drizzle-orm";
 import {
   db,
   topicsTable,
@@ -45,7 +45,7 @@ const WEEK_TITLES: Record<number, { title: string; summary: string }> = {
   },
 };
 
-async function buildWeek(weekNumber: number, userId: string) {
+async function buildWeek(weekNumber: number) {
   const lectures = await db
     .select({
       id: lecturesTable.id,
@@ -71,12 +71,7 @@ async function buildWeek(weekNumber: number, userId: string) {
       const attempts = await db
         .select()
         .from(attemptsTable)
-        .where(
-          and(
-            eq(attemptsTable.assignmentId, a.id),
-            eq(attemptsTable.userId, userId),
-          ),
-        )
+        .where(eq(attemptsTable.assignmentId, a.id))
         .orderBy(asc(attemptsTable.id));
       const submitted = attempts.filter((x) => x.status === "submitted");
       const inProgress = attempts.find((x) => x.status === "in_progress");
@@ -120,20 +115,15 @@ async function buildWeek(weekNumber: number, userId: string) {
   };
 }
 
-router.get("/course/overview", async (req, res) => {
-  const userId = req.userId!;
-  const weeks = await Promise.all(
-    [1, 2, 3, 4].map((w) => buildWeek(w, userId)),
-  );
+router.get("/course/overview", async (_req, res) => {
+  const weeks = await Promise.all([1, 2, 3, 4].map(buildWeek));
   const assignmentsTotal = weeks.reduce((s, w) => s + w.assignments.length, 0);
   const assignmentsCompleted = weeks.reduce(
     (s, w) => s + w.assignments.filter((a) => a.status === "submitted").length,
     0,
   );
   const practiceCountRow = await db.execute(
-    sql`select count(*)::int as n from practice_attempts pa
-        join practice_sessions ps on ps.id = pa.session_id
-        where ps.user_id = ${userId}`,
+    sql`select count(*)::int as n from practice_attempts`,
   );
   const practiceCount =
     (practiceCountRow.rows[0] as { n?: number } | undefined)?.n ?? 0;
@@ -156,7 +146,7 @@ router.get("/course/weeks/:weekNumber", async (req, res): Promise<void> => {
     res.status(400).json({ error: "invalid weekNumber" });
     return;
   }
-  const week = await buildWeek(weekNumber, req.userId!);
+  const week = await buildWeek(weekNumber);
   res.json(GetWeekResponse.parse(week));
 });
 
@@ -200,16 +190,10 @@ router.get(
       res.status(400).json({ error: "invalid lectureId" });
       return;
     }
-    const userId = req.userId!;
     const rows = await db
       .select()
       .from(lectureCustomVersionsTable)
-      .where(
-        and(
-          eq(lectureCustomVersionsTable.lectureId, lectureId),
-          eq(lectureCustomVersionsTable.userId, userId),
-        ),
-      )
+      .where(eq(lectureCustomVersionsTable.lectureId, lectureId))
       .orderBy(desc(lectureCustomVersionsTable.id));
     res.json(ListLectureCustomVersionsResponse.parse(rows));
   },
@@ -226,7 +210,6 @@ router.post(
       res.status(400).json({ error: "invalid lectureId" });
       return;
     }
-    const userId = req.userId!;
     const parsed = CreateLectureCustomVersionBody.safeParse(req.body);
     if (!parsed.success) {
       res.status(400).json({ error: parsed.error.message });
@@ -303,7 +286,6 @@ router.post(
     const [created] = await db
       .insert(lectureCustomVersionsTable)
       .values({
-        userId,
         lectureId,
         label: finalLabel,
         instructions,
@@ -330,15 +312,9 @@ router.delete(
       res.status(400).json({ error: "invalid versionId" });
       return;
     }
-    const userId = req.userId!;
     await db
       .delete(lectureCustomVersionsTable)
-      .where(
-        and(
-          eq(lectureCustomVersionsTable.id, versionId),
-          eq(lectureCustomVersionsTable.userId, userId),
-        ),
-      );
+      .where(eq(lectureCustomVersionsTable.id, versionId));
     res.json(DeleteLectureCustomVersionResponse.parse({ ok: true }));
   },
 );

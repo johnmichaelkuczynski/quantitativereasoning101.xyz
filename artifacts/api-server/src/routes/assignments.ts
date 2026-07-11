@@ -27,8 +27,7 @@ function parseIdParam(raw: unknown): number {
   return parseInt(s ?? "", 10);
 }
 
-router.get("/assignments", async (req, res) => {
-  const userId = req.userId!;
+router.get("/assignments", async (_req, res) => {
   const rows = await db
     .select()
     .from(assignmentsTable)
@@ -42,7 +41,7 @@ router.get("/assignments", async (req, res) => {
       const attempts = await db
         .select()
         .from(attemptsTable)
-        .where(and(eq(attemptsTable.assignmentId, a.id), eq(attemptsTable.userId, userId)))
+        .where(eq(attemptsTable.assignmentId, a.id))
         .orderBy(asc(attemptsTable.id));
       const submitted = attempts.filter((x) => x.status === "submitted");
       const inProgress = attempts.find((x) => x.status === "in_progress");
@@ -111,11 +110,11 @@ router.get("/assignments/:assignmentId", async (req, res): Promise<void> => {
   );
 });
 
-async function loadAttempt(attemptId: number, userId: string) {
+async function loadAttempt(attemptId: number) {
   const [attempt] = await db
     .select()
     .from(attemptsTable)
-    .where(and(eq(attemptsTable.id, attemptId), eq(attemptsTable.userId, userId)));
+    .where(eq(attemptsTable.id, attemptId));
   if (!attempt) return null;
   const answers = await db
     .select()
@@ -138,7 +137,6 @@ async function loadAttempt(attemptId: number, userId: string) {
 }
 
 router.post("/assignments/:assignmentId/start", async (req, res): Promise<void> => {
-  const userId = req.userId!;
   const id = parseIdParam(req.params.assignmentId);
   if (!Number.isFinite(id)) {
     res.status(400).json({ error: "invalid id" });
@@ -154,15 +152,9 @@ router.post("/assignments/:assignmentId/start", async (req, res): Promise<void> 
   const [existing] = await db
     .select()
     .from(attemptsTable)
-    .where(
-      and(
-        eq(attemptsTable.assignmentId, id),
-        eq(attemptsTable.status, "in_progress"),
-        eq(attemptsTable.userId, userId),
-      ),
-    );
+    .where(and(eq(attemptsTable.assignmentId, id), eq(attemptsTable.status, "in_progress")));
   if (existing) {
-    const state = await loadAttempt(existing.id, userId);
+    const state = await loadAttempt(existing.id);
     res.json(StartAssignmentAttemptResponse.parse(state));
     return;
   }
@@ -173,24 +165,23 @@ router.post("/assignments/:assignmentId/start", async (req, res): Promise<void> 
       : null;
   const [created] = await db
     .insert(attemptsTable)
-    .values({ assignmentId: id, status: "in_progress", deadlineAt, userId })
+    .values({ assignmentId: id, status: "in_progress", deadlineAt })
     .returning();
   if (!created) {
     res.status(500).json({ error: "failed to create" });
     return;
   }
-  const state = await loadAttempt(created.id, userId);
+  const state = await loadAttempt(created.id);
   res.json(StartAssignmentAttemptResponse.parse(state));
 });
 
 router.get("/assignments/attempts/:attemptId", async (req, res): Promise<void> => {
-  const userId = req.userId!;
   const id = parseIdParam(req.params.attemptId);
   if (!Number.isFinite(id)) {
     res.status(400).json({ error: "invalid id" });
     return;
   }
-  const state = await loadAttempt(id, userId);
+  const state = await loadAttempt(id);
   if (!state) {
     res.status(404).json({ error: "attempt not found" });
     return;
@@ -199,7 +190,6 @@ router.get("/assignments/attempts/:attemptId", async (req, res): Promise<void> =
 });
 
 router.put("/assignments/attempts/:attemptId/answer", async (req, res): Promise<void> => {
-  const userId = req.userId!;
   const id = parseIdParam(req.params.attemptId);
   if (!Number.isFinite(id)) {
     res.status(400).json({ error: "invalid id" });
@@ -215,7 +205,7 @@ router.put("/assignments/attempts/:attemptId/answer", async (req, res): Promise<
   const [attempt] = await db
     .select()
     .from(attemptsTable)
-    .where(and(eq(attemptsTable.id, id), eq(attemptsTable.userId, userId)));
+    .where(eq(attemptsTable.id, id));
   if (!attempt) {
     res.status(404).json({ error: "attempt not found" });
     return;
@@ -255,7 +245,6 @@ router.put("/assignments/attempts/:attemptId/answer", async (req, res): Promise<
 });
 
 router.post("/assignments/attempts/:attemptId/submit", async (req, res): Promise<void> => {
-  const userId = req.userId!;
   const id = parseIdParam(req.params.attemptId);
   if (!Number.isFinite(id)) {
     res.status(400).json({ error: "invalid id" });
@@ -264,7 +253,7 @@ router.post("/assignments/attempts/:attemptId/submit", async (req, res): Promise
   const [attempt] = await db
     .select()
     .from(attemptsTable)
-    .where(and(eq(attemptsTable.id, id), eq(attemptsTable.userId, userId)));
+    .where(eq(attemptsTable.id, id));
   if (!attempt) {
     res.status(404).json({ error: "attempt not found" });
     return;
@@ -292,7 +281,7 @@ router.post("/assignments/attempts/:attemptId/submit", async (req, res): Promise
       userAnswer,
     });
     if (graded.correct) score += 1;
-    await recordTopicOutcome(userId, p.topicId, graded.correct);
+    await recordTopicOutcome(p.topicId, graded.correct);
     perProblem.push({
       problemId: p.id,
       correct: graded.correct,

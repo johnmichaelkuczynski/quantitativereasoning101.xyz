@@ -1,3 +1,3 @@
-- [Multi-user isolation](multi-user-isolation.md) — ROOT tables carry userId (filter every access); CHILD rows owned via parent (gate by parent, never by own id = IDOR); web auth is cookie-only.
+- [No login by user decree](no-login-decision.md) — user demanded ALL auth ripped out (July 2026); app is intentionally single-user/open. Never reintroduce login unprompted.
 - [Practice twin feature](practice-twin.md) — generate/submit/feedback loop for ungraded twins of graded assignments; non-overlap + idempotency rules that must hold.
 - [Neon publish conflict](neon-publish-conflict.md) — publish stalls when external DATABASE_URL coexists with a Replit-managed DB; delete the empty managed DB, never the secret.
