@@ -3,6 +3,7 @@ import { Link, useLocation } from "wouter";
 import { LayoutDashboard, PenTool, BarChart3, Activity, RotateCcw, Sparkles, ClipboardCheck, LogIn, LogOut, UserCircle, ShieldCheck } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth";
+import { useGoogleLogin } from "@/lib/loginLauncher";
 
 export function Sidebar() {
   const [location] = useLocation();
@@ -61,6 +62,7 @@ export function Sidebar() {
 
 function AuthControls() {
   const auth = useAuth();
+  const { login, waiting } = useGoogleLogin();
 
   async function handleLogout() {
     try {
@@ -76,14 +78,21 @@ function AuthControls() {
 
   if (auth.status === "signedOut") {
     return (
-      <a
-        href="/api/auth/google"
-        className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium bg-primary text-primary-foreground hover:opacity-90"
-        data-testid="button-login"
-      >
-        <LogIn className="w-4 h-4" />
-        Sign in with Google
-      </a>
+      <div className="flex items-center gap-2">
+        <button
+          onClick={login}
+          className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium bg-primary text-primary-foreground hover:opacity-90"
+          data-testid="button-login"
+        >
+          <LogIn className="w-4 h-4" />
+          Sign in with Google
+        </button>
+        {waiting && (
+          <span className="text-xs text-muted-foreground" data-testid="status-waiting-signin">
+            Waiting for sign-in in the other tab…
+          </span>
+        )}
+      </div>
     );
   }
 

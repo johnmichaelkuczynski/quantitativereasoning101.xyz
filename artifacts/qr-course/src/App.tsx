@@ -3,7 +3,9 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/lib/auth";
-import { LogIn } from "lucide-react";
+import { devCallbackUrl, useGoogleLogin } from "@/lib/loginLauncher";
+import { LogIn, Copy, Check, RefreshCw } from "lucide-react";
+import { useState } from "react";
 import NotFound from "@/pages/not-found";
 
 import Dashboard from "@/pages/Dashboard";
@@ -39,10 +41,51 @@ function Router() {
   );
 }
 
+function CallbackUrlHint() {
+  const [copied, setCopied] = useState(false);
+  const url = devCallbackUrl();
+
+  async function handleCopy() {
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Clipboard unavailable; the URL is still selectable below.
+    }
+  }
+
+  return (
+    <div className="p-3 rounded-md border border-border bg-secondary/50 text-left space-y-2">
+      <p className="text-xs text-muted-foreground">
+        If Google rejects the sign-in, make sure this exact URL is listed under
+        Authorized redirect URIs in your Google Cloud Console OAuth client:
+      </p>
+      <div className="flex items-center gap-2">
+        <code
+          className="flex-1 text-xs break-all bg-background border border-border rounded px-2 py-1.5 select-all"
+          data-testid="text-callback-url"
+        >
+          {url}
+        </code>
+        <button
+          onClick={handleCopy}
+          className="shrink-0 inline-flex items-center gap-1 px-2 py-1.5 rounded-md text-xs font-medium border border-border hover:bg-secondary"
+          data-testid="button-copy-callback"
+        >
+          {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+          {copied ? "Copied" : "Copy"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function SignInScreen() {
   const authFailed =
     typeof window !== "undefined" &&
     new URLSearchParams(window.location.search).get("error") === "auth_failed";
+  const { login, waiting } = useGoogleLogin();
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background text-foreground px-4">
@@ -66,15 +109,32 @@ function SignInScreen() {
         )}
         <div className="p-8 rounded-lg border border-border bg-card space-y-4">
           <p className="font-medium">Sign in with Google to access the course.</p>
-          <a
-            href="/api/auth/google"
+          <button
+            onClick={login}
             className="inline-flex items-center gap-2 px-5 py-2.5 rounded-md text-base font-medium bg-primary text-primary-foreground hover:opacity-90"
             data-testid="button-login"
           >
             <LogIn className="w-5 h-5" />
             Sign in with Google
-          </a>
+          </button>
+          {waiting && (
+            <div className="space-y-3" data-testid="status-waiting-signin">
+              <p className="text-sm text-muted-foreground">
+                Waiting for you to finish signing in with Google in the other
+                tab… This screen will update automatically.
+              </p>
+              <button
+                onClick={() => window.location.reload()}
+                className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium border border-border hover:bg-secondary"
+                data-testid="button-refresh-signin"
+              >
+                <RefreshCw className="w-4 h-4" />
+                I&apos;ve signed in — refresh
+              </button>
+            </div>
+          )}
         </div>
+        {(authFailed || waiting) && <CallbackUrlHint />}
         <p className="text-xs text-muted-foreground">
           A Google account is required. No content is available without signing in.
         </p>
