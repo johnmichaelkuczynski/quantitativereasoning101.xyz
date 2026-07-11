@@ -21,3 +21,11 @@ This project's app uses an **external Neon Postgres** via a user-set `DATABASE_U
 **Why:** the warning is Replit telling you "you brought your own DB, so our DB features are off." It is informational, but the Publish UI can gate on resolving the managed-vs-external conflict. Removing the unused managed DB clears the gate.
 
 **How to apply:** there is no programmatic delete-database callback — it's a user UI action. Confirm DB direction with the user first (keep external vs switch to Replit). Never remove `DATABASE_URL` without explicit consent — doing so points the live app at an empty Replit DB and loses access to Neon data.
+
+## Follow-on failure mode: prod serves 500s with Neon "The endpoint has been disabled"
+
+After the managed DB was deleted, production kept a **stale DATABASE_URL snapshot** pointing at the deleted managed DB's disabled Neon endpoint. Symptom: every prod DB query fails with `The endpoint has been disabled. Enable it using the API and retry.` while dev works with the same secret name.
+
+**Diagnosis shortcut:** curl the prod `/api/diagnostics/system` endpoint — "DATABASE_URL present: PASS" + "SELECT 1: FAIL" proves the value is stale, not missing. Deployment secrets are a snapshot; republishing does NOT auto-sync a secret the Publish UI marks out-of-sync.
+
+**Fix (user-only action):** Publish tool → Adjust settings → Secrets → sync the out-of-sync `DATABASE_URL` → Republish. The agent cannot read or set production secret values.
