@@ -27,12 +27,6 @@ vi.mock("../src/lib/ai", () => ({
   chatText: vi.fn(async () => "Deterministic tutor reply used by tests."),
 }));
 
-vi.mock("../src/auth", () => ({
-  setupAuth: () => {},
-  isAuthenticated: (_req: unknown, _res: unknown, next: () => void) => next(),
-  isAdmin: (_req: unknown, _res: unknown, next: () => void) => next(),
-}));
-
 let app: Express;
 let db: typeof import("@workspace/db").db;
 let schema: typeof import("@workspace/db");

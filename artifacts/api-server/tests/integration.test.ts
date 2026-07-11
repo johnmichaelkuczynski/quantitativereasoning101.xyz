@@ -31,14 +31,6 @@ vi.mock("../src/lib/ai", () => ({
   ),
 }));
 
-// Google-login middleware is irrelevant to these routes; skip the session
-// pool and let every request through.
-vi.mock("../src/auth", () => ({
-  setupAuth: () => {},
-  isAuthenticated: (_req: unknown, _res: unknown, next: () => void) => next(),
-  isAdmin: (_req: unknown, _res: unknown, next: () => void) => next(),
-}));
-
 let app: Express;
 let db: typeof import("@workspace/db").db;
 let schema: typeof import("@workspace/db");

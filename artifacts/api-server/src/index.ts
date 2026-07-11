@@ -1,4 +1,3 @@
-import "./lib/env-hygiene";
 import app from "./app";
 import { logger } from "./lib/logger";
 import { seedIfEmpty } from "./lib/seed";
