@@ -636,7 +636,6 @@ export interface AssessmentResult {
   passed: boolean;
   perProblem: AssessmentProblemResult[];
   feedback: AssessmentFeedback;
-  detection: DetectionResult[];
 }
 
 export interface CreateLectureCustomInput {

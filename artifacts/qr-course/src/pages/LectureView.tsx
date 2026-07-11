@@ -2,7 +2,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   useGetLecture,
   getGetLectureQueryKey,
-  useGetCourseOverview,
   useAskTutor,
   useStartPracticeSession,
   useNextPracticeProblem,
@@ -25,7 +24,7 @@ import { AnswerInput } from "@/components/AnswerInput";
 import { MathKeyboard } from "@/components/MathKeyboard";
 import { StarterQuestionCard } from "@/components/StarterQuestionCard";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, ArrowRight, MessageSquare, Sparkles, Send, X, RefreshCw, CheckCircle2, XCircle } from "lucide-react";
+import { ArrowLeft, MessageSquare, Sparkles, Send, X, RefreshCw, CheckCircle2, XCircle } from "lucide-react";
 
 type ChatMsg = { role: "user" | "tutor"; text: string };
 
@@ -37,7 +36,6 @@ export default function LectureView() {
   // shared selected-text state (used by both Tutor and Practice)
   const [selectedText, setSelectedText] = useState("");
   const articleRef = useRef<HTMLDivElement | null>(null);
-  const leftScrollRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     function onSelect() {
@@ -82,27 +80,7 @@ export default function LectureView() {
     setSelectedCustomId(null);
     setGeneratingLevel(null);
     setGenerateError(null);
-    setSelectedText("");
-    leftScrollRef.current?.scrollTo({ top: 0 });
   }, [lectureId]);
-
-  // Global ordered lecture sequence (across all weeks) so the reader can move
-  // straight to the next/previous lecture without detouring to the dashboard.
-  const { data: overview } = useGetCourseOverview();
-  const flatLectures = useMemo(() => {
-    const weeks = [...(overview?.weeks ?? [])].sort(
-      (a, b) => a.weekNumber - b.weekNumber,
-    );
-    return weeks.flatMap((w) =>
-      w.lectures.map((l) => ({ id: l.id, title: l.title, weekNumber: w.weekNumber })),
-    );
-  }, [overview]);
-  const currentIndex = flatLectures.findIndex((l) => l.id === lectureId);
-  const prevLecture = currentIndex > 0 ? flatLectures[currentIndex - 1] : null;
-  const nextLecture =
-    currentIndex >= 0 && currentIndex < flatLectures.length - 1
-      ? flatLectures[currentIndex + 1]
-      : null;
 
   const { data: customVersions } = useListLectureCustomVersions(lectureId, {
     query: {
@@ -179,7 +157,7 @@ export default function LectureView() {
 
       <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-0 min-h-0">
         {/* LEFT: lecture */}
-        <div ref={leftScrollRef} className="overflow-y-auto px-8 pb-16 border-r border-border">
+        <div className="overflow-y-auto px-8 pb-16 border-r border-border">
           {isLoading ? (
             <div className="flex flex-col gap-6 mt-4">
               <Skeleton className="h-12 w-3/4" />
@@ -257,49 +235,6 @@ export default function LectureView() {
                   Tip: highlight any passage above to ask the tutor about it, or to generate practice problems specifically on what you selected.
                 </div>
               </div>
-
-              <nav className="mt-8 flex items-stretch gap-3">
-                {prevLecture ? (
-                  <Link href={`/lectures/${prevLecture.id}`} className="flex-1 min-w-0">
-                    <button
-                      className="group w-full h-full flex items-center gap-3 text-left rounded-lg border border-border bg-card px-4 py-3 shadow-sm transition-colors hover:border-primary/50 hover:bg-secondary/50"
-                      data-testid="button-prev-lecture"
-                    >
-                      <ArrowLeft className="w-4 h-4 shrink-0 text-muted-foreground group-hover:text-primary" />
-                      <span className="flex flex-col min-w-0">
-                        <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                          Previous
-                        </span>
-                        <span className="truncate font-medium text-foreground">
-                          {prevLecture.title}
-                        </span>
-                      </span>
-                    </button>
-                  </Link>
-                ) : (
-                  <div className="flex-1" />
-                )}
-                {nextLecture ? (
-                  <Link href={`/lectures/${nextLecture.id}`} className="flex-1 min-w-0">
-                    <button
-                      className="group w-full h-full flex items-center justify-end gap-3 text-right rounded-lg border border-border bg-card px-4 py-3 shadow-sm transition-colors hover:border-primary/50 hover:bg-secondary/50"
-                      data-testid="button-next-lecture"
-                    >
-                      <span className="flex flex-col min-w-0 items-end">
-                        <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                          Next
-                        </span>
-                        <span className="truncate font-medium text-foreground">
-                          {nextLecture.title}
-                        </span>
-                      </span>
-                      <ArrowRight className="w-4 h-4 shrink-0 text-muted-foreground group-hover:text-primary" />
-                    </button>
-                  </Link>
-                ) : (
-                  <div className="flex-1" />
-                )}
-              </nav>
             </article>
           ) : (
             <div className="mt-8">Lecture not found.</div>

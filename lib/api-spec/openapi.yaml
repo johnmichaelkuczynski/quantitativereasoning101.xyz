@@ -1296,7 +1296,7 @@ components:
 
     AssessmentResult:
       type: object
-      required: [id, slot, kind, score, total, percent, passed, perProblem, feedback, detection]
+      required: [id, slot, kind, score, total, percent, passed, perProblem, feedback]
       properties:
         id: { type: integer }
         slot:
@@ -1315,10 +1315,6 @@ components:
             $ref: "#/components/schemas/AssessmentProblemResult"
         feedback:
           $ref: "#/components/schemas/AssessmentFeedback"
-        detection:
-          type: array
-          items:
-            $ref: "#/components/schemas/DetectionResult"
 
     AssessmentProblemResult:
       type: object

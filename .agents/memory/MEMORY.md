@@ -1,9 +1,2 @@
-- [Canonical Google OAuth](google-oauth-canonical.md) — user-mandated verbatim Passport auth.ts; Google login ONLY, mandatory sign-in wall (no content without login); keep byte-verbatim, satisfy tooling via config.
-- [Login flip-flop history](login-history.md) — user ripped out all auth July 11 2026, then same day ordered Google-only mandatory login reinstated; current confirmed state = login REQUIRED.
-- [OAuth secret whitespace](oauth-secret-whitespace.md) — pasted GOOGLE_CLIENT_SECRET had stray whitespace → invalid_client 500s; env-hygiene.ts strips it, must stay first import in index.ts.
-- [Bundled session store](bundled-session-store.md) — esbuild bundle drops connect-pg-simple's table.sql; missing session table makes OAuth end in auth_failed. Build copies it into dist/.
-- [Synthetic auth test](synthetic-auth-test.md) — `pnpm --filter @workspace/scripts run synthetic-auth-test` forges a signed session to e2e-test login wall, admin gating, and full course stack without a real Google account.
 - [Practice twin feature](practice-twin.md) — generate/submit/feedback loop for ungraded twins of graded assignments; non-overlap + idempotency rules that must hold.
 - [Neon publish conflict](neon-publish-conflict.md) — publish stalls when external DATABASE_URL coexists with a Replit-managed DB; delete the empty managed DB, never the secret.
-- [API integration test suite](api-test-suite.md) — committed tests use a dedicated qr_course_test DB + stubbed AI (fallback paths); never run them against the dev DB.
-- [Iframe login launch](iframe-login-launch.md) — window.open with "noopener" feature returns null even on success; null opener manually. Iframe harness page enables framed-context UI tests.
