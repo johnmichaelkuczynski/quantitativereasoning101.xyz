@@ -22,6 +22,13 @@ export const pool = new Pool({
   connectionString,
   ...(useSsl ? { ssl: { rejectUnauthorized: false } } : {}),
 });
+
+// Managed poolers (e.g. Neon) drop idle connections; without this handler a
+// dropped idle client emits an unhandled 'error' event and crashes the process.
+pool.on("error", (err) => {
+  console.error("Database pool error (idle client):", err.message);
+});
+
 export const db = drizzle(pool, { schema });
 
 export * from "./schema";
