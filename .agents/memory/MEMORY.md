@@ -4,3 +4,4 @@
 - [Synthetic auth test](synthetic-auth-test.md) — `pnpm --filter @workspace/scripts run synthetic-auth-test` forges a signed session to e2e-test login wall, admin gating, and full course stack without a real Google account.
 - [Practice twin feature](practice-twin.md) — generate/submit/feedback loop for ungraded twins of graded assignments; non-overlap + idempotency rules that must hold.
 - [Neon publish conflict](neon-publish-conflict.md) — publish stalls when external DATABASE_URL coexists with a Replit-managed DB; delete the empty managed DB, never the secret.
+- [API integration test suite](api-test-suite.md) — committed tests use a dedicated qr_course_test DB + stubbed AI (fallback paths); never run them against the dev DB.
