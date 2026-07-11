@@ -27,7 +27,6 @@ function parseIdParam(raw: unknown): number {
 }
 
 async function pickTopicId(
-  userId: string,
   weekNumber: number | null | undefined,
   preferred: number | null | undefined,
   focusOnWeaknesses: boolean,
@@ -42,11 +41,8 @@ async function pickTopicId(
 
   if (focusOnWeaknesses) {
     const stats = await db.execute(sql`
-      select pa.topic_id, count(*)::int as n, avg(case when pa.correct then 1.0 else 0.0 end) as acc
-      from practice_attempts pa
-      join practice_sessions ps on ps.id = pa.session_id
-      where ps.user_id = ${userId}
-      group by pa.topic_id
+      select topic_id, count(*)::int as n, avg(case when correct then 1.0 else 0.0 end) as acc
+      from practice_attempts group by topic_id
     `);
     const byId = new Map<number, { n: number; acc: number }>();
     for (const r of stats.rows as Array<{ topic_id: number; n: number; acc: number }>) {
@@ -69,7 +65,6 @@ async function pickTopicId(
 }
 
 router.post("/practice/sessions", async (req, res): Promise<void> => {
-  const userId = req.userId!;
   const parsed = StartPracticeSessionBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
@@ -84,7 +79,6 @@ router.post("/practice/sessions", async (req, res): Promise<void> => {
   const [created] = await db
     .insert(practiceSessionsTable)
     .values({
-      userId,
       weekNumber: weekNumber ?? null,
       topicId: topicId ?? null,
       tutorEnabled,
@@ -109,7 +103,6 @@ router.post("/practice/sessions", async (req, res): Promise<void> => {
 });
 
 router.post("/practice/sessions/:sessionId/next", async (req, res): Promise<void> => {
-  const userId = req.userId!;
   const sessionId = parseIdParam(req.params.sessionId);
   const parsed = NextPracticeProblemBody.safeParse(req.body);
   if (!parsed.success) {
@@ -119,19 +112,13 @@ router.post("/practice/sessions/:sessionId/next", async (req, res): Promise<void
   const [session] = await db
     .select()
     .from(practiceSessionsTable)
-    .where(
-      and(
-        eq(practiceSessionsTable.id, sessionId),
-        eq(practiceSessionsTable.userId, userId),
-      ),
-    );
+    .where(eq(practiceSessionsTable.id, sessionId));
   if (!session) {
     res.status(404).json({ error: "session not found" });
     return;
   }
 
   const topic = await pickTopicId(
-    userId,
     session.weekNumber,
     parsed.data.topicId ?? session.topicId,
     session.focusOnWeaknesses,
@@ -214,7 +201,6 @@ router.post("/practice/sessions/:sessionId/next", async (req, res): Promise<void
 });
 
 router.post("/practice/sessions/:sessionId/grade", async (req, res): Promise<void> => {
-  const userId = req.userId!;
   const sessionId = parseIdParam(req.params.sessionId);
   const parsed = GradePracticeAnswerBody.safeParse(req.body);
   if (!parsed.success) {
@@ -225,12 +211,7 @@ router.post("/practice/sessions/:sessionId/grade", async (req, res): Promise<voi
   const [session] = await db
     .select()
     .from(practiceSessionsTable)
-    .where(
-      and(
-        eq(practiceSessionsTable.id, sessionId),
-        eq(practiceSessionsTable.userId, userId),
-      ),
-    );
+    .where(eq(practiceSessionsTable.id, sessionId));
   if (!session) {
     res.status(404).json({ error: "session not found" });
     return;
@@ -265,7 +246,7 @@ router.post("/practice/sessions/:sessionId/grade", async (req, res): Promise<voi
     trace,
   });
 
-  await recordTopicOutcome(userId, problem.topicId, graded.correct);
+  await recordTopicOutcome(problem.topicId, graded.correct);
 
   const delta = graded.correct ? 0.4 : -0.5;
   const newDifficulty = Math.max(1, Math.min(5, session.difficulty + delta));
