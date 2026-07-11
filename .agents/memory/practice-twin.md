@@ -33,6 +33,11 @@ into THREE places: graded assignment submit, topic-drill grade, and practice-ass
 submit. The focus report cross-references this evolving EMA with the current attempt's
 misses to produce surgically specific "do this next" pointers, worst-first.
 
+These invariants are now guarded by the committed API test suite
+(`tests/practice-assignments.test.ts` in the api-server, run by the `api-tests`
+validation) — non-overlap, regeneration uniqueness, submit idempotency, and
+answer ownership all have failing tests if they regress.
+
 **Why:** these four invariants are the core product promises ("never repeats", fair
 ungraded practice, trustworthy analytics). Breaking any silently corrupts mastery data
 or breaks the non-repeat guarantee.
