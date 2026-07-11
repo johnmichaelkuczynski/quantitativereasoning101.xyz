@@ -81,7 +81,7 @@ function CallbackUrlHint() {
   );
 }
 
-function SignInScreen() {
+export function SignInScreen() {
   const authFailed =
     typeof window !== "undefined" &&
     new URLSearchParams(window.location.search).get("error") === "auth_failed";

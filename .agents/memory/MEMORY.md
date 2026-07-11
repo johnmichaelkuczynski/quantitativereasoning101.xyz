@@ -6,3 +6,4 @@
 - [Practice twin feature](practice-twin.md) — generate/submit/feedback loop for ungraded twins of graded assignments; non-overlap + idempotency rules that must hold.
 - [Neon publish conflict](neon-publish-conflict.md) — publish stalls when external DATABASE_URL coexists with a Replit-managed DB; delete the empty managed DB, never the secret.
 - [API integration test suite](api-test-suite.md) — committed tests use a dedicated qr_course_test DB + stubbed AI (fallback paths); never run them against the dev DB.
+- [Iframe login launch](iframe-login-launch.md) — window.open with "noopener" feature returns null even on success; null opener manually. Iframe harness page enables framed-context UI tests.

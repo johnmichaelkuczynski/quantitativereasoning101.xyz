@@ -17,8 +17,17 @@ export function devCallbackUrl(): string {
 export function launchGoogleLogin(): "newTab" | "sameTab" {
   const url = `${window.location.origin}/api/auth/google`;
   if (isFramed()) {
-    const opened = window.open(url, "_blank", "noopener");
-    if (opened) return "newTab";
+    // Note: passing "noopener" in the features string makes window.open
+    // return null even on success, so we null out `opener` manually instead.
+    const opened = window.open(url, "_blank");
+    if (opened) {
+      try {
+        opened.opener = null;
+      } catch {
+        // Cross-origin restrictions may block this; the tab is still open.
+      }
+      return "newTab";
+    }
   }
   window.location.href = url;
   return "sameTab";
