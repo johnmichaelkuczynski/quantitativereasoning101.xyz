@@ -448,7 +448,10 @@ function ResultView({
           <h2 className="text-xl font-serif font-semibold border-b pb-2">
             Problem-by-problem
           </h2>
-          {result.perProblem.map((pr) => (
+          {result.perProblem.map((pr) => {
+            const det = result.detection.find((d) => d.problemId === pr.problemId);
+            const flagged = det && (det.aiFlagged || det.diachronicFlagged);
+            return (
             <div
               key={pr.problemId}
               className={`p-6 rounded-lg border ${
@@ -492,8 +495,18 @@ function ResultView({
                   </div>
                 </div>
               )}
+              {flagged && det && (
+                <div className="mt-4 p-3 bg-secondary rounded-md text-sm border border-secondary-border">
+                  <strong className="text-chart-4">
+                    AI-authorship check flagged this answer — accepted, no penalty
+                    during the initial phase.
+                  </strong>
+                  <p className="text-muted-foreground mt-1">{det.rationale}</p>
+                </div>
+              )}
             </div>
-          ))}
+            );
+          })}
         </section>
 
         <div className="flex gap-3 pt-2">

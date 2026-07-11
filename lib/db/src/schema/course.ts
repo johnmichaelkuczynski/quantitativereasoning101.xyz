@@ -219,7 +219,15 @@ export const assessmentProblemsTable = pgTable("assessment_problems", {
   feedback: text("feedback"),
   keystrokeCount: integer("keystroke_count").notNull().default(0),
   eraseCount: integer("erase_count").notNull().default(0),
+  bulkInsertCount: integer("bulk_insert_count").notNull().default(0),
+  longestBulkInsertChars: integer("longest_bulk_insert_chars").notNull().default(0),
+  rewriteSegments: integer("rewrite_segments").notNull().default(0),
   durationMs: integer("duration_ms").notNull().default(0),
+  aiScore: doublePrecision("ai_score"),
+  aiFlagged: boolean("ai_flagged"),
+  diachronicScore: doublePrecision("diachronic_score"),
+  diachronicFlagged: boolean("diachronic_flagged"),
+  detectionRationale: text("detection_rationale"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

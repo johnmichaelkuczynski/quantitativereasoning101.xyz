@@ -1,3 +1,5 @@
-- [No login by user decree](no-login-decision.md) — user demanded ALL auth ripped out (July 2026); app is intentionally single-user/open. Never reintroduce login unprompted.
+- [Canonical Google OAuth](google-oauth-canonical.md) — user-mandated verbatim Passport auth.ts; Google login ONLY, no Clerk/Replit Auth ever; keep byte-verbatim, satisfy tooling via config.
+- [Login history](login-ripped-out.md) — Clerk auth fully removed at user demand; the canonical Google OAuth file is the only permitted login system.
+- [Bundled session store](bundled-session-store.md) — esbuild bundle drops connect-pg-simple's table.sql; missing session table makes OAuth end in auth_failed. Build copies it into dist/.
 - [Practice twin feature](practice-twin.md) — generate/submit/feedback loop for ungraded twins of graded assignments; non-overlap + idempotency rules that must hold.
 - [Neon publish conflict](neon-publish-conflict.md) — publish stalls when external DATABASE_URL coexists with a Replit-managed DB; delete the empty managed DB, never the secret.

@@ -21,6 +21,7 @@ import {
 } from "@workspace/api-zod";
 import { chatJson } from "../lib/ai";
 import { gradeAnswer } from "../lib/grading";
+import { detect } from "../lib/detection";
 import {
   BLUEPRINT,
   generateAssessmentForm,
@@ -328,6 +329,9 @@ router.put("/assessments/instances/:id/answer", async (req, res): Promise<void> 
       answer,
       keystrokeCount: trace.keystrokeCount,
       eraseCount: trace.eraseCount,
+      bulkInsertCount: trace.bulkInsertCount ?? 0,
+      longestBulkInsertChars: trace.longestBulkInsertChars ?? 0,
+      rewriteSegments: trace.rewriteSegments ?? 0,
       durationMs: trace.durationMs,
     })
     .where(
@@ -462,6 +466,7 @@ router.post("/assessments/instances/:id/submit", async (req, res): Promise<void>
     .orderBy(asc(assessmentProblemsTable.position));
 
   const perProblem = [];
+  const detection = [];
   let score = 0;
   const domainTotals = new Map<string, DomainResult>();
   for (const p of problems) {
@@ -472,10 +477,37 @@ router.post("/assessments/instances/:id/submit", async (req, res): Promise<void>
     });
     if (graded.correct) score += 1;
     const explanation = graded.explanation || p.explanation;
-    await db
-      .update(assessmentProblemsTable)
-      .set({ correct: graded.correct, feedback: explanation })
-      .where(eq(assessmentProblemsTable.id, p.id));
+
+    // Screen every non-empty answer with the two-layer AI-authorship detector,
+    // exactly like graded homework/tests.
+    if (p.answer.trim().length > 0) {
+      const det = await detect(p.answer, {
+        keystrokeCount: p.keystrokeCount,
+        eraseCount: p.eraseCount,
+        bulkInsertCount: p.bulkInsertCount,
+        longestBulkInsertChars: p.longestBulkInsertChars,
+        rewriteSegments: p.rewriteSegments,
+        durationMs: p.durationMs,
+      });
+      detection.push({ problemId: p.id, ...det });
+      await db
+        .update(assessmentProblemsTable)
+        .set({
+          correct: graded.correct,
+          feedback: explanation,
+          aiScore: det.aiScore,
+          aiFlagged: det.aiFlagged,
+          diachronicScore: det.diachronicScore,
+          diachronicFlagged: det.diachronicFlagged,
+          detectionRationale: det.rationale,
+        })
+        .where(eq(assessmentProblemsTable.id, p.id));
+    } else {
+      await db
+        .update(assessmentProblemsTable)
+        .set({ correct: graded.correct, feedback: explanation })
+        .where(eq(assessmentProblemsTable.id, p.id));
+    }
 
     const dr =
       domainTotals.get(p.domain) ??
@@ -558,6 +590,7 @@ router.post("/assessments/instances/:id/submit", async (req, res): Promise<void>
       passed: true,
       perProblem,
       feedback,
+      detection,
     }),
   );
 });
@@ -589,8 +622,26 @@ router.get("/assessments/instances/:id/result", async (req, res): Promise<void> 
     .orderBy(asc(assessmentProblemsTable.position));
 
   let score = 0;
+  const detection: Array<{
+    problemId: number;
+    aiScore: number;
+    aiFlagged: boolean;
+    diachronicScore: number;
+    diachronicFlagged: boolean;
+    rationale: string;
+  }> = [];
   const perProblem = problems.map((p) => {
     if (p.correct) score += 1;
+    if (p.aiScore != null) {
+      detection.push({
+        problemId: p.id,
+        aiScore: p.aiScore,
+        aiFlagged: !!p.aiFlagged,
+        diachronicScore: p.diachronicScore ?? 0,
+        diachronicFlagged: !!p.diachronicFlagged,
+        rationale: p.detectionRationale ?? "",
+      });
+    }
     return {
       problemId: p.id,
       position: p.position,
@@ -617,6 +668,7 @@ router.get("/assessments/instances/:id/result", async (req, res): Promise<void> 
       passed: !!instance.passed,
       perProblem,
       feedback: instance.feedback,
+      detection,
     }),
   );
 });
