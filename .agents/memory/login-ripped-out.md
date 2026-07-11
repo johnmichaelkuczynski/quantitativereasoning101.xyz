@@ -11,4 +11,4 @@ In July 2026 the user's stated plan arrived: a canonical Passport + Google OAuth
 
 **Why:** the user wants real public Google login — never Clerk, never Replit Auth, permanently.
 
-**How to apply:** never reintroduce Clerk or Replit Auth in any form. Auth changes go through the canonical Google OAuth file's rules. Login stays optional; the app stays fully open; auth only gates `/api/admin/*`.
+**How to apply:** never reintroduce Clerk or Replit Auth in any form. Auth changes go through the canonical Google OAuth file's rules. Since July 2026 login is mandatory site-wide (user: "no sign-in, no site, PERIOD"); admin-only surfaces are additionally gated by `isAdmin`.

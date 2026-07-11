@@ -4,7 +4,8 @@ import pinoHttp from "pino-http";
 import path from "node:path";
 import fs from "node:fs";
 import router from "./routes";
-import { setupAuth } from "./auth";
+import healthRouter from "./routes/health";
+import { setupAuth, isAuthenticated } from "./auth";
 import { logger } from "./lib/logger";
 
 const app: Express = express();
@@ -34,7 +35,12 @@ app.use(express.urlencoded({ extended: true }));
 
 setupAuth(app);
 
-app.use("/api", router);
+// Health stays open for deploy health checks; auth endpoints are registered
+// inside setupAuth (before this) so they remain reachable while signed out.
+// Everything else under /api requires a Google login — the site is closed
+// to anonymous visitors.
+app.use("/api", healthRouter);
+app.use("/api", isAuthenticated, router);
 
 // In production, serve the built qr-course frontend from the same process.
 // On Replit the deploy sidecar handles this; on Render (single web service)

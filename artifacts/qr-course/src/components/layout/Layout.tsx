@@ -1,16 +1,22 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { Link, useLocation } from "wouter";
-import { LayoutDashboard, PenTool, BarChart3, Activity, RotateCcw, Sparkles, ClipboardCheck, LogIn, LogOut, UserCircle } from "lucide-react";
+import { LayoutDashboard, PenTool, BarChart3, Activity, RotateCcw, Sparkles, ClipboardCheck, LogIn, LogOut, UserCircle, ShieldCheck } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "@/lib/auth";
 
 export function Sidebar() {
   const [location] = useLocation();
+  const auth = useAuth();
+  const isAdmin = auth.status === "signedIn" && auth.isAdmin;
 
   const navItems = [
     { href: "/", label: "Dashboard", icon: LayoutDashboard },
     { href: "/assignments", label: "Assignments", icon: PenTool },
     { href: "/assessments", label: "Assessments", icon: ClipboardCheck },
     { href: "/analytics", label: "Analytics", icon: BarChart3 },
+    ...(isAdmin
+      ? [{ href: "/administrative", label: "Administrative", icon: ShieldCheck }]
+      : []),
   ];
 
   return (
@@ -53,33 +59,8 @@ export function Sidebar() {
   );
 }
 
-type AuthState =
-  | { status: "loading" }
-  | { status: "signedOut" }
-  | { status: "signedIn"; user: { id: number; username: string; email: string | null; displayName: string | null } };
-
 function AuthControls() {
-  const [auth, setAuth] = useState<AuthState>({ status: "loading" });
-
-  useEffect(() => {
-    let cancelled = false;
-    fetch("/api/auth/user", { credentials: "include" })
-      .then((res) => (res.ok ? res.json() : { authenticated: false }))
-      .then((data: { authenticated: boolean; user?: { id: number; username: string; email: string | null; displayName: string | null } | null }) => {
-        if (cancelled) return;
-        if (data.authenticated && data.user) {
-          setAuth({ status: "signedIn", user: data.user });
-        } else {
-          setAuth({ status: "signedOut" });
-        }
-      })
-      .catch(() => {
-        if (!cancelled) setAuth({ status: "signedOut" });
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  const auth = useAuth();
 
   async function handleLogout() {
     try {
