@@ -1,3 +1,4 @@
 - [Course answer-key QC diagnostic](course-qc-diagnostic.md) — LLM key-legitimacy checks must judge against the course's own lecture text (not generic knowledge), or correct course-specific keys false-flag.
 - [Clerk + wouter auth](clerk-wouter-auth.md) — protected-route HOC for wouter must use ComponentType<any> (not Record-constrained); base path `/` stays a public landing, dashboard lives at `/dashboard`.
 - [EthosReason conventions](ethosreason-conventions.md) — OpenAPI title locked to `Api`; live tutor only in practice (hidden in graded); prose AnswerInput for substantive answers; reseed is prod-gated and assignment IDs aren't stable.
+- [Temporary public access](temporary-public-access.md) — Ethics 101 intentionally has no login; all course and operator functionality stays public until the user requests a replacement auth system.

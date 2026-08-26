@@ -1,10 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
-import { LayoutDashboard, PenTool, BarChart3, Activity, RotateCcw, LogOut } from "lucide-react";
+import { LayoutDashboard, PenTool, BarChart3, Activity, RotateCcw } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { useClerk, useUser } from "@clerk/react";
-
-const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
 
 export function Sidebar() {
   const [location] = useLocation();
@@ -48,8 +45,23 @@ export function Sidebar() {
         })}
       </div>
 
-      <div className="p-4 border-t border-border text-xs text-muted-foreground text-center">
-        Ethics Course MVP
+      <div className="p-4 border-t border-border flex items-center justify-center gap-3 text-xs text-muted-foreground">
+        <a
+          href="https://zhisystems.ai/"
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="Visit ZHI Systems"
+          title="Visit ZHI Systems"
+          className="shrink-0 rounded-md ring-1 ring-border transition-opacity hover:opacity-75"
+        >
+          <img src="/zhi-logo.png" alt="ZHI Systems" className="h-7 w-7 rounded-md" />
+        </a>
+        <a
+          href="mailto:johnmichaelkuczynski@gmail.com"
+          className="font-medium hover:text-foreground hover:underline"
+        >
+          Contact us
+        </a>
       </div>
     </div>
   );
@@ -59,8 +71,6 @@ function TopBar() {
   const [location, setLocation] = useLocation();
   const active = location.startsWith("/diagnostics");
   const qc = useQueryClient();
-  const { signOut } = useClerk();
-  const { user } = useUser();
   const [resetting, setResetting] = useState(false);
 
   async function handleReset() {
@@ -109,26 +119,6 @@ function TopBar() {
         </button>
       </Link>
 
-      <div className="mx-1 h-6 w-px bg-border" />
-
-      {user && (
-        <span
-          className="hidden sm:inline text-sm text-muted-foreground max-w-[12rem] truncate"
-          title={user.primaryEmailAddress?.emailAddress ?? undefined}
-          data-testid="text-user-email"
-        >
-          {user.primaryEmailAddress?.emailAddress ?? user.firstName ?? "Account"}
-        </span>
-      )}
-      <button
-        onClick={() => signOut({ redirectUrl: basePath || "/" })}
-        className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium border border-border hover:bg-secondary"
-        data-testid="button-sign-out"
-        title="Sign out"
-      >
-        <LogOut className="w-4 h-4" />
-        Sign out
-      </button>
     </div>
   );
 }

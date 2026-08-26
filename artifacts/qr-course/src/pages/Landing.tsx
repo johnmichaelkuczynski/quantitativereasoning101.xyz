@@ -61,20 +61,12 @@ export default function Landing() {
           </span>
         </div>
         <div className="flex items-center gap-2">
-          <Link href="/sign-in">
-            <button
-              className="px-4 py-2 rounded-md text-sm font-medium border border-border hover:bg-secondary transition-colors"
-              data-testid="button-sign-in"
-            >
-              Sign in
-            </button>
-          </Link>
-          <Link href="/sign-up">
+          <Link href="/dashboard">
             <button
               className="px-4 py-2 rounded-md text-sm font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
-              data-testid="button-sign-up"
+              data-testid="button-enter-course"
             >
-              Get started
+              Enter course
             </button>
           </Link>
         </div>
@@ -95,20 +87,20 @@ export default function Landing() {
             exists.
           </p>
           <div className="flex items-center justify-center gap-3">
-            <Link href="/sign-up">
+            <Link href="/dashboard">
               <button
                 className="px-6 py-3 rounded-md text-base font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
                 data-testid="button-cta-start"
               >
-                Sign in with Google to start
+                Start learning
               </button>
             </Link>
-            <Link href="/sign-in">
+            <Link href="/assignments">
               <button
                 className="px-6 py-3 rounded-md text-base font-medium border border-border hover:bg-secondary transition-colors"
-                data-testid="button-cta-signin"
+                data-testid="button-cta-assignments"
               >
-                I already have an account
+                View assignments
               </button>
             </Link>
           </div>
@@ -156,9 +148,31 @@ export default function Landing() {
         </section>
       </main>
 
-      <footer className="border-t border-border px-6 py-6 text-center text-sm text-muted-foreground">
-        Ethics 101 — where the curriculum, the tutor, the grader, and the
-        integrity check all live in one room.
+      <footer className="border-t border-border px-6 py-6 text-sm text-muted-foreground">
+        <div className="mx-auto flex max-w-5xl flex-col items-center justify-between gap-4 sm:flex-row">
+          <span className="text-center sm:text-left">
+            Ethics 101 — where the curriculum, the tutor, the grader, and the
+            integrity check all live in one room.
+          </span>
+          <div className="flex shrink-0 items-center gap-4">
+            <a
+              href="mailto:johnmichaelkuczynski@gmail.com"
+              className="font-medium hover:text-foreground hover:underline"
+            >
+              Contact us
+            </a>
+            <a
+              href="https://zhisystems.ai/"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Visit ZHI Systems"
+              title="Visit ZHI Systems"
+              className="rounded-md ring-1 ring-border transition-opacity hover:opacity-75"
+            >
+              <img src="/zhi-logo.png" alt="ZHI Systems" className="h-8 w-8 rounded-md" />
+            </a>
+          </div>
+        </div>
       </footer>
     </div>
   );
