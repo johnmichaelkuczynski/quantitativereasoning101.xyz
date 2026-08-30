@@ -30,6 +30,7 @@ import {
   GraduationCap,
   Target,
 } from "lucide-react";
+import { trackEvent } from "@/lib/analytics";
 
 const emptyTrace: KeystrokeTrace = {
   keystrokeCount: 0,
@@ -51,7 +52,17 @@ export default function PracticeAssignment() {
   function generateSet() {
     generate.mutate(
       { assignmentId },
-      { onSuccess: (s) => setSet(s) },
+      {
+        onSuccess: (s) => {
+          trackEvent("practice_started", {
+            mode: "assignment",
+            assignment_id: assignmentId,
+            session_id: s.sessionId,
+            problem_count: s.problems.length,
+          });
+          setSet(s);
+        },
+      },
     );
   }
 
@@ -183,6 +194,12 @@ function PracticeProblemCard({
       { sessionId, data: { problemId, answer, trace } },
       {
         onSuccess: (r) => {
+          trackEvent("practice_answer_graded", {
+            mode: "assignment",
+            session_id: sessionId,
+            problem_id: problemId,
+            correct: r.correct,
+          });
           setFeedback(r);
           onGraded?.();
         },

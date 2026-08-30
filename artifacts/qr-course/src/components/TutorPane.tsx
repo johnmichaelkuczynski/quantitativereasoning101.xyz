@@ -4,6 +4,7 @@ import { MarkdownRenderer } from "@/components/MarkdownRenderer";
 import { StarterQuestionCard } from "@/components/StarterQuestionCard";
 import { Button } from "@/components/ui/button";
 import { Send, X } from "lucide-react";
+import { trackEvent } from "@/lib/analytics";
 
 type ChatMsg = { role: "user" | "tutor"; text: string };
 
@@ -66,6 +67,11 @@ export function TutorPane({
       },
       {
         onSuccess: (res) => {
+          trackEvent("tutor_response_received", {
+            context: lectureId == null ? "assignment_practice" : "lecture",
+            lecture_id: lectureId ?? 0,
+            has_selected_text: Boolean(selectedText),
+          });
           setHistory((h) => [...h, { role: "tutor", text: res.text }]);
           onUsedSelection?.();
         },

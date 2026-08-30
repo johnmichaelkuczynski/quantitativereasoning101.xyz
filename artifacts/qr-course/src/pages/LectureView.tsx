@@ -17,11 +17,23 @@ import { AnswerInput } from "@/components/AnswerInput";
 import { TutorPane } from "@/components/TutorPane";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, MessageSquare, Sparkles, X, RefreshCw, CheckCircle2, XCircle } from "lucide-react";
+import { trackEvent } from "@/lib/analytics";
 
 export default function LectureView() {
   const params = useParams();
   const lectureId = Number(params.lectureId);
   const { data: lecture, isLoading, refetch } = useGetLecture(lectureId);
+  const trackedLectureId = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (!lecture || trackedLectureId.current === lecture.id) return;
+    trackedLectureId.current = lecture.id;
+    trackEvent("lecture_opened", {
+      lecture_id: lecture.id,
+      topic_id: lecture.topicId,
+      unit: lecture.weekNumber,
+    });
+  }, [lecture]);
 
   const [tab, setTab] = useState<"tutor" | "practice">("tutor");
   const [level, setLevel] = useState<"short" | "medium" | "long">("short");
@@ -317,6 +329,12 @@ function PracticePane({
       },
       {
         onSuccess: (s) => {
+          trackEvent("practice_started", {
+            mode: "lecture",
+            lecture_id: lectureId ?? 0,
+            topic_id: topicId,
+            session_id: s.id,
+          });
           setSessionId(s.id);
           loadNext(s.id);
         },
@@ -349,7 +367,20 @@ function PracticePane({
     if (!sessionId || !problem) return;
     grader.mutate(
       { sessionId, data: { problemId: problem.id, answer, trace } },
-      { onSuccess: (r) => setGrade(r) },
+      {
+        onSuccess: (r) => {
+          trackEvent("practice_answer_graded", {
+            mode: "lecture",
+            lecture_id: lectureId ?? 0,
+            topic_id: topicId ?? 0,
+            session_id: sessionId,
+            problem_id: problem.id,
+            correct: r.correct,
+            difficulty: problem.difficulty ?? 0,
+          });
+          setGrade(r);
+        },
+      },
     );
   }
 

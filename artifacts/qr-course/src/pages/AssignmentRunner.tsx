@@ -15,6 +15,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { AnswerInput } from "@/components/AnswerInput";
 import { MarkdownRenderer } from "@/components/MarkdownRenderer";
 import { Sparkles } from "lucide-react";
+import { trackEvent } from "@/lib/analytics";
 
 export default function AssignmentRunner() {
   const params = useParams();
@@ -39,6 +40,10 @@ export default function AssignmentRunner() {
     if (assignmentId && !attemptId && !startAttempt.isPending && !result) {
       startAttempt.mutate({ assignmentId }, {
         onSuccess: (data) => {
+          trackEvent("assignment_started", {
+            assignment_id: assignmentId,
+            attempt_id: data.id,
+          });
           setAttemptId(data.id);
           const initialAnswers: Record<number, string> = {};
           data.answers.forEach(a => {
@@ -78,6 +83,12 @@ export default function AssignmentRunner() {
     if (!attemptId) return;
     submitAttempt.mutate({ attemptId }, {
       onSuccess: (data) => {
+        trackEvent("assignment_submitted", {
+          assignment_id: assignmentId,
+          attempt_id: attemptId,
+          percent: data.percent,
+          problem_count: data.total,
+        });
         setResult(data);
       }
     });

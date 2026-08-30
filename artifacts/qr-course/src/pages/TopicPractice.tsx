@@ -15,6 +15,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { MarkdownRenderer } from "@/components/MarkdownRenderer";
 import { AnswerInput } from "@/components/AnswerInput";
 import { ArrowLeft, CheckCircle2, XCircle, RefreshCw } from "lucide-react";
+import { trackEvent } from "@/lib/analytics";
 
 function difficultyFromAccuracy(attempts: number, accuracy: number): {
   value: number;
@@ -99,6 +100,11 @@ export default function TopicPractice() {
       },
       {
         onSuccess: (s) => {
+          trackEvent("practice_started", {
+            mode: "topic",
+            topic_id: topicId,
+            session_id: s.id,
+          });
           setSessionId(s.id);
           loadNext(s.id);
         },
@@ -124,6 +130,14 @@ export default function TopicPractice() {
       { sessionId, data: { problemId: problem.id, answer, trace } },
       {
         onSuccess: (r) => {
+          trackEvent("practice_answer_graded", {
+            mode: "topic",
+            topic_id: topicId,
+            session_id: sessionId,
+            problem_id: problem.id,
+            correct: r.correct,
+            difficulty: problem.difficulty ?? 0,
+          });
           setGrade(r);
           setHistory((h) => [
             ...h,

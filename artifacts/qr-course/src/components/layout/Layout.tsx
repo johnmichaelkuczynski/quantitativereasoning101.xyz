@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { LayoutDashboard, PenTool, BarChart3, Activity, RotateCcw } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
+import { trackEvent } from "@/lib/analytics";
 
 export function Sidebar() {
   const [location] = useLocation();
@@ -48,6 +49,7 @@ export function Sidebar() {
       <div className="p-4 border-t border-border flex items-center justify-center gap-3 text-xs text-muted-foreground">
         <a
           href="https://zhisystems.ai/"
+          onClick={() => trackEvent("company_link_clicked", { location: "course_sidebar" })}
           target="_blank"
           rel="noopener noreferrer"
           aria-label="Visit ZHI Systems"
@@ -58,6 +60,7 @@ export function Sidebar() {
         </a>
         <a
           href="mailto:johnmichaelkuczynski@gmail.com"
+          onClick={() => trackEvent("contact_clicked", { location: "course_sidebar" })}
           className="font-medium hover:text-foreground hover:underline"
         >
           Contact us
@@ -84,6 +87,7 @@ function TopBar() {
     try {
       const res = await fetch("/api/diagnostics/reset", { method: "POST" });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      trackEvent("course_reset");
       await qc.invalidateQueries();
       setLocation("/");
     } catch (e) {

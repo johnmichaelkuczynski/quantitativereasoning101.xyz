@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Layout } from "@/components/layout/Layout";
 import { CheckCircle2, XCircle, Loader2, PlayCircle, Activity, ShieldCheck } from "lucide-react";
+import { trackEvent } from "@/lib/analytics";
 
 type Step = {
   name: string;
@@ -90,7 +91,9 @@ export default function Diagnostics() {
     try {
       const r = await fetch(apiUrl("/diagnostics/system"));
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
-      setSysResult(await r.json());
+      const result = (await r.json()) as RunResult;
+      setSysResult(result);
+      trackEvent("diagnostic_completed", { diagnostic_type: "system", passed: result.ok });
     } catch (e) {
       setSysError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -109,7 +112,9 @@ export default function Diagnostics() {
         body: "{}",
       });
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
-      setSynthResult(await r.json());
+      const result = (await r.json()) as RunResult;
+      setSynthResult(result);
+      trackEvent("diagnostic_completed", { diagnostic_type: "synthetic", passed: result.ok });
     } catch (e) {
       setSynthError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -128,7 +133,9 @@ export default function Diagnostics() {
         body: "{}",
       });
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
-      setQcResult(await r.json());
+      const result = (await r.json()) as RunResult;
+      setQcResult(result);
+      trackEvent("diagnostic_completed", { diagnostic_type: "quality_control", passed: result.ok });
     } catch (e) {
       setQcError(e instanceof Error ? e.message : String(e));
     } finally {

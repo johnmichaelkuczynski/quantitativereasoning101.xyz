@@ -1,4 +1,5 @@
 import { Link } from "wouter";
+import { trackEvent } from "@/lib/analytics";
 import {
   Scale,
   BookOpen,
@@ -61,7 +62,7 @@ export default function Landing() {
           </span>
         </div>
         <div className="flex items-center gap-2">
-          <Link href="/dashboard">
+          <Link href="/dashboard" onClick={() => trackEvent("course_entered", { location: "header" })}>
             <button
               className="px-4 py-2 rounded-md text-sm font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
               data-testid="button-enter-course"
@@ -87,7 +88,7 @@ export default function Landing() {
             exists.
           </p>
           <div className="flex items-center justify-center gap-3">
-            <Link href="/dashboard">
+            <Link href="/dashboard" onClick={() => trackEvent("course_entered", { location: "hero" })}>
               <button
                 className="px-6 py-3 rounded-md text-base font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
                 data-testid="button-cta-start"
@@ -157,12 +158,14 @@ export default function Landing() {
           <div className="flex shrink-0 items-center gap-4">
             <a
               href="mailto:johnmichaelkuczynski@gmail.com"
+              onClick={() => trackEvent("contact_clicked", { location: "landing_footer" })}
               className="font-medium hover:text-foreground hover:underline"
             >
               Contact us
             </a>
             <a
               href="https://zhisystems.ai/"
+              onClick={() => trackEvent("company_link_clicked", { location: "landing_footer" })}
               target="_blank"
               rel="noopener noreferrer"
               aria-label="Visit ZHI Systems"
